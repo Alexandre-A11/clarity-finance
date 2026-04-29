@@ -15,6 +15,7 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppTransacoesRouteImport } from './routes/_app/transacoes'
 import { Route as AppContinuasRouteImport } from './routes/_app/continuas'
 import { Route as AppCartoesRouteImport } from './routes/_app/cartoes'
+import { Route as AppAReceberRouteImport } from './routes/_app/a-receber'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -45,16 +46,23 @@ const AppCartoesRoute = AppCartoesRouteImport.update({
   path: '/cartoes',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAReceberRoute = AppAReceberRouteImport.update({
+  id: '/a-receber',
+  path: '/a-receber',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/auth': typeof AuthRoute
+  '/a-receber': typeof AppAReceberRoute
   '/cartoes': typeof AppCartoesRoute
   '/continuas': typeof AppContinuasRoute
   '/transacoes': typeof AppTransacoesRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/a-receber': typeof AppAReceberRoute
   '/cartoes': typeof AppCartoesRoute
   '/continuas': typeof AppContinuasRoute
   '/transacoes': typeof AppTransacoesRoute
@@ -64,6 +72,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_app/a-receber': typeof AppAReceberRoute
   '/_app/cartoes': typeof AppCartoesRoute
   '/_app/continuas': typeof AppContinuasRoute
   '/_app/transacoes': typeof AppTransacoesRoute
@@ -71,13 +80,20 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/cartoes' | '/continuas' | '/transacoes'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/a-receber'
+    | '/cartoes'
+    | '/continuas'
+    | '/transacoes'
   fileRoutesByTo: FileRoutesByTo
-  to: '/auth' | '/cartoes' | '/continuas' | '/transacoes' | '/'
+  to: '/auth' | '/a-receber' | '/cartoes' | '/continuas' | '/transacoes' | '/'
   id:
     | '__root__'
     | '/_app'
     | '/auth'
+    | '/_app/a-receber'
     | '/_app/cartoes'
     | '/_app/continuas'
     | '/_app/transacoes'
@@ -133,10 +149,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCartoesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/a-receber': {
+      id: '/_app/a-receber'
+      path: '/a-receber'
+      fullPath: '/a-receber'
+      preLoaderRoute: typeof AppAReceberRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppAReceberRoute: typeof AppAReceberRoute
   AppCartoesRoute: typeof AppCartoesRoute
   AppContinuasRoute: typeof AppContinuasRoute
   AppTransacoesRoute: typeof AppTransacoesRoute
@@ -144,6 +168,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAReceberRoute: AppAReceberRoute,
   AppCartoesRoute: AppCartoesRoute,
   AppContinuasRoute: AppContinuasRoute,
   AppTransacoesRoute: AppTransacoesRoute,
