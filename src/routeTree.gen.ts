@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppTransacoesRouteImport } from './routes/_app/transacoes'
+import { Route as AppContinuasRouteImport } from './routes/_app/continuas'
 import { Route as AppCartoesRouteImport } from './routes/_app/cartoes'
 
 const AuthRoute = AuthRouteImport.update({
@@ -34,6 +35,11 @@ const AppTransacoesRoute = AppTransacoesRouteImport.update({
   path: '/transacoes',
   getParentRoute: () => AppRoute,
 } as any)
+const AppContinuasRoute = AppContinuasRouteImport.update({
+  id: '/continuas',
+  path: '/continuas',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCartoesRoute = AppCartoesRouteImport.update({
   id: '/cartoes',
   path: '/cartoes',
@@ -44,11 +50,13 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/auth': typeof AuthRoute
   '/cartoes': typeof AppCartoesRoute
+  '/continuas': typeof AppContinuasRoute
   '/transacoes': typeof AppTransacoesRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/cartoes': typeof AppCartoesRoute
+  '/continuas': typeof AppContinuasRoute
   '/transacoes': typeof AppTransacoesRoute
   '/': typeof AppIndexRoute
 }
@@ -57,19 +65,21 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
   '/_app/cartoes': typeof AppCartoesRoute
+  '/_app/continuas': typeof AppContinuasRoute
   '/_app/transacoes': typeof AppTransacoesRoute
   '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/cartoes' | '/transacoes'
+  fullPaths: '/' | '/auth' | '/cartoes' | '/continuas' | '/transacoes'
   fileRoutesByTo: FileRoutesByTo
-  to: '/auth' | '/cartoes' | '/transacoes' | '/'
+  to: '/auth' | '/cartoes' | '/continuas' | '/transacoes' | '/'
   id:
     | '__root__'
     | '/_app'
     | '/auth'
     | '/_app/cartoes'
+    | '/_app/continuas'
     | '/_app/transacoes'
     | '/_app/'
   fileRoutesById: FileRoutesById
@@ -109,6 +119,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTransacoesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/continuas': {
+      id: '/_app/continuas'
+      path: '/continuas'
+      fullPath: '/continuas'
+      preLoaderRoute: typeof AppContinuasRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/cartoes': {
       id: '/_app/cartoes'
       path: '/cartoes'
@@ -121,12 +138,14 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppCartoesRoute: typeof AppCartoesRoute
+  AppContinuasRoute: typeof AppContinuasRoute
   AppTransacoesRoute: typeof AppTransacoesRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppCartoesRoute: AppCartoesRoute,
+  AppContinuasRoute: AppContinuasRoute,
   AppTransacoesRoute: AppTransacoesRoute,
   AppIndexRoute: AppIndexRoute,
 }
