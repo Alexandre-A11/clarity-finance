@@ -15,7 +15,8 @@ export function useRealtimeQuery<TableName extends keyof T>(
 
   const refetch = useCallback(async () => {
     if (!userId) return;
-    let q: any = supabase.from(table as string).select("*").eq("user_id", userId);
+    const client = supabase as any;
+    let q = client.from(table).select("*").eq("user_id", userId);
     if (build) q = build(q);
     const { data, error } = await q;
     if (!error) setData((data ?? []) as any);
