@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppTransacoesRouteImport } from './routes/_app/transacoes'
+import { Route as AppIrpfRouteImport } from './routes/_app/irpf'
 import { Route as AppInvestimentosRouteImport } from './routes/_app/investimentos'
 import { Route as AppContinuasRouteImport } from './routes/_app/continuas'
 import { Route as AppCartoesRouteImport } from './routes/_app/cartoes'
@@ -35,6 +36,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppTransacoesRoute = AppTransacoesRouteImport.update({
   id: '/transacoes',
   path: '/transacoes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppIrpfRoute = AppIrpfRouteImport.update({
+  id: '/irpf',
+  path: '/irpf',
   getParentRoute: () => AppRoute,
 } as any)
 const AppInvestimentosRoute = AppInvestimentosRouteImport.update({
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/cartoes': typeof AppCartoesRoute
   '/continuas': typeof AppContinuasRoute
   '/investimentos': typeof AppInvestimentosRoute
+  '/irpf': typeof AppIrpfRoute
   '/transacoes': typeof AppTransacoesRoute
 }
 export interface FileRoutesByTo {
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/cartoes': typeof AppCartoesRoute
   '/continuas': typeof AppContinuasRoute
   '/investimentos': typeof AppInvestimentosRoute
+  '/irpf': typeof AppIrpfRoute
   '/transacoes': typeof AppTransacoesRoute
   '/': typeof AppIndexRoute
 }
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/_app/cartoes': typeof AppCartoesRoute
   '/_app/continuas': typeof AppContinuasRoute
   '/_app/investimentos': typeof AppInvestimentosRoute
+  '/_app/irpf': typeof AppIrpfRoute
   '/_app/transacoes': typeof AppTransacoesRoute
   '/_app/': typeof AppIndexRoute
 }
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/cartoes'
     | '/continuas'
     | '/investimentos'
+    | '/irpf'
     | '/transacoes'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -104,6 +114,7 @@ export interface FileRouteTypes {
     | '/cartoes'
     | '/continuas'
     | '/investimentos'
+    | '/irpf'
     | '/transacoes'
     | '/'
   id:
@@ -114,6 +125,7 @@ export interface FileRouteTypes {
     | '/_app/cartoes'
     | '/_app/continuas'
     | '/_app/investimentos'
+    | '/_app/irpf'
     | '/_app/transacoes'
     | '/_app/'
   fileRoutesById: FileRoutesById
@@ -153,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTransacoesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/irpf': {
+      id: '/_app/irpf'
+      path: '/irpf'
+      fullPath: '/irpf'
+      preLoaderRoute: typeof AppIrpfRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/investimentos': {
       id: '/_app/investimentos'
       path: '/investimentos'
@@ -189,6 +208,7 @@ interface AppRouteChildren {
   AppCartoesRoute: typeof AppCartoesRoute
   AppContinuasRoute: typeof AppContinuasRoute
   AppInvestimentosRoute: typeof AppInvestimentosRoute
+  AppIrpfRoute: typeof AppIrpfRoute
   AppTransacoesRoute: typeof AppTransacoesRoute
   AppIndexRoute: typeof AppIndexRoute
 }
@@ -198,6 +218,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCartoesRoute: AppCartoesRoute,
   AppContinuasRoute: AppContinuasRoute,
   AppInvestimentosRoute: AppInvestimentosRoute,
+  AppIrpfRoute: AppIrpfRoute,
   AppTransacoesRoute: AppTransacoesRoute,
   AppIndexRoute: AppIndexRoute,
 }
