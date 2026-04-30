@@ -197,7 +197,7 @@ function Dashboard() {
         <KPI label="Entradas" value={fmtMoney(totals.income)} icon={ArrowUpRight} tone="success" hint="receitas do mês" />
         <KPI label="Saídas" value={fmtMoney(totals.expense)} icon={ArrowDownRight} tone="danger" hint="despesas do mês" />
         <KPI label="Saldo" value={fmtMoney(totals.balance)} icon={Wallet} tone={totals.balance >= 0 ? "success" : "danger"} hint="entradas − saídas" />
-        <KPI label="A receber" value={fmtMoney(pendingReceivable)} icon={TrendingUp} hint={`${receivables.filter((r: any) => r.status === "pending").length} pendentes`} />
+        <KPI label="A receber" value={fmtMoney(pendingReceivable)} icon={TrendingUp} hint={`${receivables.filter((r: any) => r?.status === "pending").length} pendentes`} />
       </div>
 
       {/* Próximos Vencimentos */}
@@ -242,7 +242,7 @@ function Dashboard() {
               </div>
               <div className="space-y-2">
                 {byCategory.slice(0, 6).map((c) => {
-                  const pct = (c.value / totals.expense) * 100;
+                  const pct = totals.expense > 0 ? (c.value / totals.expense) * 100 : 0;
                   return (
                     <div key={c.name} className="flex items-center gap-3 text-sm">
                       <span className="h-2.5 w-2.5 rounded-full" style={{ background: c.color }} />
@@ -274,7 +274,7 @@ function Dashboard() {
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className="truncate">{t.description ?? cat?.name ?? "Lançamento"}</p>
-                      <p className="text-xs text-muted-foreground">{new Date(t.date).toLocaleDateString("pt-BR")}</p>
+                      <p className="text-xs text-muted-foreground">{fmtDate(t.date)}</p>
                     </div>
                     <span className={`tabular font-medium ${t.kind === "income" ? "text-success" : "text-foreground"}`}>
                       {t.kind === "income" ? "+" : "−"} {fmtMoney(t.amount)}
@@ -341,7 +341,7 @@ function DueRow({ item }: { item: DueItem }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{item.label}</p>
-        <p className="text-xs text-muted-foreground">{item.source} • {new Date(item.date).toLocaleDateString("pt-BR")}</p>
+        <p className="text-xs text-muted-foreground">{item.source} • {fmtDate(item.date)}</p>
       </div>
       <span className={`text-xs px-2 py-0.5 rounded-full ${styles.badgeBg} ${styles.badgeFg} whitespace-nowrap`}>
         {urgencyLabel(item.urgency, item.daysLeft)}
