@@ -62,7 +62,7 @@ function AppLayout() {
           <span className="font-semibold tracking-tight">Finanças</span>
         </div>
         <nav className="flex-1 px-3 space-y-0.5">
-          {NAV.map((item) => {
+          {visibleNav.map((item) => {
             const active =
               item.to === "/"
                 ? loc.pathname === "/"
@@ -112,7 +112,7 @@ function AppLayout() {
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex justify-around z-40">
-        {NAV.slice(0, 5).map((item) => {
+        {visibleNav.slice(0, 5).map((item) => {
           const active = item.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(item.to);
           const Icon = item.icon;
           return (
