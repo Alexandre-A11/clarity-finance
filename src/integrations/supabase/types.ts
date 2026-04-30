@@ -111,6 +111,7 @@ export type Database = {
           id: string
           limit_total: number
           name: string
+          next_due_date: string | null
           user_id: string
         }
         Insert: {
@@ -122,6 +123,7 @@ export type Database = {
           id?: string
           limit_total?: number
           name: string
+          next_due_date?: string | null
           user_id: string
         }
         Update: {
@@ -133,6 +135,7 @@ export type Database = {
           id?: string
           limit_total?: number
           name?: string
+          next_due_date?: string | null
           user_id?: string
         }
         Relationships: []
@@ -283,40 +286,46 @@ export type Database = {
         Row: {
           created_at: string
           description: string
+          due_day: number | null
           id: string
+          kind: Database["public"]["Enums"]["ongoing_kind"]
           monthly_value: number
           months_paid: number
-          months_total: number
+          months_total: number | null
           notes: string | null
           paid_amount: number
           start_date: string
-          total_amount: number
+          total_amount: number | null
           user_id: string
         }
         Insert: {
           created_at?: string
           description: string
+          due_day?: number | null
           id?: string
+          kind?: Database["public"]["Enums"]["ongoing_kind"]
           monthly_value: number
           months_paid?: number
-          months_total: number
+          months_total?: number | null
           notes?: string | null
           paid_amount?: number
           start_date: string
-          total_amount: number
+          total_amount?: number | null
           user_id: string
         }
         Update: {
           created_at?: string
           description?: string
+          due_day?: number | null
           id?: string
+          kind?: Database["public"]["Enums"]["ongoing_kind"]
           monthly_value?: number
           months_paid?: number
-          months_total?: number
+          months_total?: number | null
           notes?: string | null
           paid_amount?: number
           start_date?: string
-          total_amount?: number
+          total_amount?: number | null
           user_id?: string
         }
         Relationships: []
@@ -366,6 +375,44 @@ export type Database = {
         }
         Relationships: []
       }
+      receivable_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          paid_at: string
+          receivable_id: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string
+          receivable_id: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string
+          receivable_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receivable_payments_receivable_id_fkey"
+            columns: ["receivable_id"]
+            isOneToOne: false
+            referencedRelation: "receivables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       receivables: {
         Row: {
           amount: number
@@ -374,6 +421,7 @@ export type Database = {
           due_date: string | null
           id: string
           notes: string | null
+          received_amount: number
           status: Database["public"]["Enums"]["receivable_status"]
           user_id: string
         }
@@ -384,6 +432,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           notes?: string | null
+          received_amount?: number
           status?: Database["public"]["Enums"]["receivable_status"]
           user_id: string
         }
@@ -394,6 +443,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           notes?: string | null
+          received_amount?: number
           status?: Database["public"]["Enums"]["receivable_status"]
           user_id?: string
         }
@@ -408,10 +458,12 @@ export type Database = {
           created_at: string
           date: string
           description: string | null
+          due_date: string | null
           id: string
           installment_index: number | null
           installment_purchase_id: string | null
           is_installment: boolean
+          is_paid: boolean
           kind: Database["public"]["Enums"]["tx_kind"]
           user_id: string
         }
@@ -423,10 +475,12 @@ export type Database = {
           created_at?: string
           date: string
           description?: string | null
+          due_date?: string | null
           id?: string
           installment_index?: number | null
           installment_purchase_id?: string | null
           is_installment?: boolean
+          is_paid?: boolean
           kind: Database["public"]["Enums"]["tx_kind"]
           user_id: string
         }
@@ -438,10 +492,12 @@ export type Database = {
           created_at?: string
           date?: string
           description?: string | null
+          due_date?: string | null
           id?: string
           installment_index?: number | null
           installment_purchase_id?: string | null
           is_installment?: boolean
+          is_paid?: boolean
           kind?: Database["public"]["Enums"]["tx_kind"]
           user_id?: string
         }
@@ -487,6 +543,7 @@ export type Database = {
       account_type: "checking" | "savings" | "wallet" | "other"
       asset_kind: "stock" | "fii"
       dividend_type: "dividend" | "jcp" | "rendimento"
+      ongoing_kind: "subscription" | "installment"
       receivable_status: "pending" | "paid" | "overdue"
       tx_kind: "income" | "expense"
     }
@@ -619,6 +676,7 @@ export const Constants = {
       account_type: ["checking", "savings", "wallet", "other"],
       asset_kind: ["stock", "fii"],
       dividend_type: ["dividend", "jcp", "rendimento"],
+      ongoing_kind: ["subscription", "installment"],
       receivable_status: ["pending", "paid", "overdue"],
       tx_kind: ["income", "expense"],
     },
