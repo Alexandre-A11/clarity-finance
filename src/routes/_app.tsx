@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useRole } from "@/lib/use-role";
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -11,6 +12,7 @@ import {
   History,
   LogOut,
   Wallet,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -20,19 +22,22 @@ export const Route = createFileRoute("/_app")({
 });
 
 const NAV = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/transacoes", label: "Transações", icon: ArrowLeftRight },
-  { to: "/cartoes", label: "Cartões", icon: CreditCard },
-  { to: "/continuas", label: "Despesas fixas", icon: Repeat },
-  { to: "/historico", label: "Histórico", icon: History },
-  { to: "/investimentos", label: "Investimentos", icon: TrendingUp },
-  { to: "/irpf", label: "IRPF", icon: FileText },
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, adminOnly: false },
+  { to: "/transacoes", label: "Transações", icon: ArrowLeftRight, adminOnly: false },
+  { to: "/cartoes", label: "Cartões", icon: CreditCard, adminOnly: false },
+  { to: "/continuas", label: "Despesas fixas", icon: Repeat, adminOnly: false },
+  { to: "/historico", label: "Histórico", icon: History, adminOnly: false },
+  { to: "/investimentos", label: "Investimentos", icon: TrendingUp, adminOnly: false },
+  { to: "/irpf", label: "IRPF", icon: FileText, adminOnly: false },
+  { to: "/admin", label: "Administração", icon: ShieldCheck, adminOnly: true },
 ] as const;
 
 function AppLayout() {
   const { user, loading, signOut } = useAuth();
+  const { isAdmin } = useRole();
   const nav = useNavigate();
   const loc = useLocation();
+  const visibleNav = NAV.filter((n) => !n.adminOnly || isAdmin);
 
   useEffect(() => {
     if (!loading && !user) nav({ to: "/auth" });
@@ -57,7 +62,7 @@ function AppLayout() {
           <span className="font-semibold tracking-tight">Finanças</span>
         </div>
         <nav className="flex-1 px-3 space-y-0.5">
-          {NAV.map((item) => {
+          {visibleNav.map((item) => {
             const active =
               item.to === "/"
                 ? loc.pathname === "/"
@@ -107,7 +112,7 @@ function AppLayout() {
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex justify-around z-40">
-        {NAV.slice(0, 5).map((item) => {
+        {visibleNav.slice(0, 5).map((item) => {
           const active = item.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(item.to);
           const Icon = item.icon;
           return (

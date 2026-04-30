@@ -48,22 +48,37 @@ export const installmentDates = (firstDate: string, count: number) => {
   });
 };
 
-// Compute days until a date (negative = overdue)
-export const daysUntil = (dateStr: string) => {
+// Compute days until a date (negative = overdue). Safe against null/invalid.
+export const daysUntil = (dateStr: string | null | undefined) => {
+  if (!dateStr) return Number.POSITIVE_INFINITY;
+  const parts = String(dateStr).slice(0, 10).split("-").map(Number);
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return Number.POSITIVE_INFINITY;
+  const [y, m, d] = parts;
+  const target = new Date(y, m - 1, d);
+  target.setHours(0, 0, 0, 0);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const target = new Date(dateStr);
-  target.setHours(0, 0, 0, 0);
   return Math.round((target.getTime() - today.getTime()) / 86400000);
 };
 
 export type DueUrgency = "overdue" | "today" | "soon" | "upcoming" | "future";
 
-export const dueUrgency = (dateStr: string): DueUrgency => {
+export const dueUrgency = (dateStr: string | null | undefined): DueUrgency => {
+  if (!dateStr) return "future";
   const d = daysUntil(dateStr);
+  if (!Number.isFinite(d)) return "future";
   if (d < 0) return "overdue";
   if (d === 0) return "today";
   if (d <= 3) return "soon";
   if (d <= 7) return "upcoming";
   return "future";
+};
+
+// Safe locale date formatter for "YYYY-MM-DD" or ISO strings.
+export const fmtDate = (dateStr: string | null | undefined) => {
+  if (!dateStr) return "—";
+  const parts = String(dateStr).slice(0, 10).split("-").map(Number);
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return "—";
+  const [y, m, d] = parts;
+  return new Date(y, m - 1, d).toLocaleDateString("pt-BR");
 };

@@ -334,22 +334,28 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          email: string | null
           id: string
           name: string | null
+          role: string
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          email?: string | null
           id: string
           name?: string | null
+          role?: string
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           name?: string | null
+          role?: string
           updated_at?: string
         }
         Relationships: []
@@ -537,7 +543,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       account_type: "checking" | "savings" | "wallet" | "other"

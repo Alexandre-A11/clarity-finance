@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { useRealtimeQuery } from "@/lib/data-hooks";
-import { fmtMoney, monthRange, monthLabel, daysUntil, dueUrgency, type DueUrgency } from "@/lib/finance";
+import { fmtMoney, monthRange, monthLabel, daysUntil, dueUrgency, fmtDate, type DueUrgency } from "@/lib/finance";
 import { Card } from "@/components/ui/card";
 import { ArrowDownRight, ArrowUpRight, TrendingUp, Wallet, CreditCard as CreditCardIcon, AlertCircle, Clock } from "lucide-react";
 import { useMemo } from "react";
@@ -52,46 +52,64 @@ type DueItem = {
 function Dashboard() {
   const { user } = useAuth();
   const range = monthRange();
-  const { data: txs } = useRealtimeQuery("transactions", user?.id, (q) =>
+  const { data: txsData } = useRealtimeQuery("transactions", user?.id, (q) =>
     q.gte("date", range.start).lte("date", range.end).order("date", { ascending: false })
   );
-  const { data: allTxs } = useRealtimeQuery("transactions", user?.id, (q) =>
+  const { data: allTxsData } = useRealtimeQuery("transactions", user?.id, (q) =>
     q.not("due_date", "is", null).order("due_date", { ascending: true }).limit(100)
   );
-  const { data: cards } = useRealtimeQuery("credit_cards", user?.id);
-  const { data: receivables } = useRealtimeQuery("receivables", user?.id);
-  const { data: cats } = useRealtimeQuery("categories", user?.id);
-  const { data: ongoing } = useRealtimeQuery("ongoing_expenses", user?.id);
+  const { data: cardsData } = useRealtimeQuery("credit_cards", user?.id);
+  const { data: receivablesData } = useRealtimeQuery("receivables", user?.id);
+  const { data: catsData } = useRealtimeQuery("categories", user?.id);
+  const { data: ongoingData } = useRealtimeQuery("ongoing_expenses", user?.id);
+
+  // Defensive defaults — never trust the source array shape
+  const txs = Array.isArray(txsData) ? txsData : [];
+  const allTxs = Array.isArray(allTxsData) ? allTxsData : [];
+  const cards = Array.isArray(cardsData) ? cardsData : [];
+  const receivables = Array.isArray(receivablesData) ? receivablesData : [];
+  const cats = Array.isArray(catsData) ? catsData : [];
+  const ongoing = Array.isArray(ongoingData) ? ongoingData : [];
 
   const totals = useMemo(() => {
-    const income = txs.filter((t: any) => t.kind === "income").reduce((s: number, t: any) => s + Number(t.amount), 0);
-    const expense = txs.filter((t: any) => t.kind === "expense").reduce((s: number, t: any) => s + Number(t.amount), 0);
+    const income = txs
+      .filter((t: any) => t?.kind === "income")
+      .reduce((s: number, t: any) => s + (Number(t?.amount) || 0), 0);
+    const expense = txs
+      .filter((t: any) => t?.kind === "expense")
+      .reduce((s: number, t: any) => s + (Number(t?.amount) || 0), 0);
     return { income, expense, balance: income - expense };
   }, [txs]);
 
   const pendingReceivable = useMemo(
-    () => receivables.filter((r: any) => r.status === "pending").reduce((s: number, r: any) => s + Number(r.amount), 0),
+    () =>
+      receivables
+        .filter((r: any) => r?.status === "pending")
+        .reduce((s: number, r: any) => s + (Number(r?.amount) || 0), 0),
     [receivables]
   );
 
   const byCategory = useMemo(() => {
     const map = new Map<string, { name: string; value: number; color: string }>();
-    txs.filter((t: any) => t.kind === "expense").forEach((t: any) => {
-      const cat = cats.find((c: any) => c.id === t.category_id);
-      const k = cat?.id ?? "none";
-      const cur = map.get(k) ?? { name: cat?.name ?? "Sem categoria", value: 0, color: cat?.color ?? "#94a3b8" };
-      cur.value += Number(t.amount);
-      map.set(k, cur);
-    });
+    txs
+      .filter((t: any) => t?.kind === "expense")
+      .forEach((t: any) => {
+        const cat = cats.find((c: any) => c?.id === t?.category_id);
+        const k = cat?.id ?? "none";
+        const cur = map.get(k) ?? { name: cat?.name ?? "Sem categoria", value: 0, color: cat?.color ?? "#94a3b8" };
+        cur.value += Number(t?.amount) || 0;
+        map.set(k, cur);
+      });
     return Array.from(map.values()).sort((a, b) => b.value - a.value);
   }, [txs, cats]);
 
   const cardsWithUsage = useMemo(() => {
     return cards.map((c: any) => {
+      const limit = Number(c?.limit_total) || 0;
       const used = txs
-        .filter((t: any) => t.card_id === c.id)
-        .reduce((s: number, t: any) => s + Number(t.amount), 0);
-      return { ...c, used, pct: c.limit_total > 0 ? (used / Number(c.limit_total)) * 100 : 0 };
+        .filter((t: any) => t?.card_id === c?.id)
+        .reduce((s: number, t: any) => s + (Number(t?.amount) || 0), 0);
+      return { ...c, used, pct: limit > 0 ? (used / limit) * 100 : 0 };
     });
   }, [cards, txs]);
 
@@ -99,19 +117,20 @@ function Dashboard() {
   const upcoming = useMemo<DueItem[]>(() => {
     const items: DueItem[] = [];
     const today = new Date();
-    const horizon = new Date(); horizon.setDate(today.getDate() + 14);
+    const horizon = new Date();
+    horizon.setDate(today.getDate() + 14);
 
     // Transactions com due_date e não pagas
     allTxs.forEach((t: any) => {
-      if (!t.due_date || t.is_paid) return;
-      const cat = cats.find((c: any) => c.id === t.category_id);
+      if (!t?.due_date || t?.is_paid) return;
+      const cat = cats.find((c: any) => c?.id === t?.category_id);
       const u = dueUrgency(t.due_date);
       if (u === "future") return;
       items.push({
         id: `tx-${t.id}`,
         label: t.description ?? cat?.name ?? "Lançamento",
         source: cat?.name ?? "Conta",
-        amount: Number(t.amount),
+        amount: Number(t.amount) || 0,
         date: t.due_date,
         urgency: u,
         daysLeft: daysUntil(t.due_date),
@@ -120,13 +139,15 @@ function Dashboard() {
 
     // Cartões com next_due_date
     cards.forEach((c: any) => {
-      if (!c.next_due_date) return;
+      if (!c?.next_due_date) return;
       const u = dueUrgency(c.next_due_date);
       if (u === "future") return;
-      const used = txs.filter((t: any) => t.card_id === c.id).reduce((s: number, t: any) => s + Number(t.amount), 0);
+      const used = txs
+        .filter((t: any) => t?.card_id === c.id)
+        .reduce((s: number, t: any) => s + (Number(t?.amount) || 0), 0);
       items.push({
         id: `card-${c.id}`,
-        label: `Fatura ${c.name}`,
+        label: `Fatura ${c.name ?? "Cartão"}`,
         source: "Cartão de crédito",
         amount: used,
         date: c.next_due_date,
@@ -135,28 +156,32 @@ function Dashboard() {
       });
     });
 
-    // Assinaturas/parcelamentos com due_day → próximo vencimento neste mês
+    // Assinaturas/parcelamentos com due_day → próximo vencimento
     ongoing.forEach((o: any) => {
-      if (!o.due_day) return;
+      const day = Number(o?.due_day);
+      if (!day || day < 1 || day > 31) return;
       const y = today.getFullYear();
       const m = today.getMonth();
-      let dueDate = new Date(y, m, o.due_day);
-      if (dueDate < today) dueDate = new Date(y, m + 1, o.due_day);
+      let dueDate = new Date(y, m, day);
+      if (dueDate < today) dueDate = new Date(y, m + 1, day);
       if (dueDate > horizon) return;
-      const iso = dueDate.toISOString().slice(0, 10);
+      const iso = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, "0")}-${String(dueDate.getDate()).padStart(2, "0")}`;
       const u = dueUrgency(iso);
       items.push({
         id: `og-${o.id}`,
-        label: o.description,
+        label: o.description ?? "Despesa fixa",
         source: o.kind === "subscription" ? "Assinatura" : "Parcelamento",
-        amount: Number(o.monthly_value),
+        amount: Number(o.monthly_value) || 0,
         date: iso,
         urgency: u,
         daysLeft: daysUntil(iso),
       });
     });
 
-    return items.sort((a, b) => a.daysLeft - b.daysLeft).slice(0, 8);
+    return items
+      .filter((i) => Number.isFinite(i.daysLeft))
+      .sort((a, b) => a.daysLeft - b.daysLeft)
+      .slice(0, 8);
   }, [allTxs, cards, txs, ongoing, cats]);
 
   return (
@@ -172,7 +197,7 @@ function Dashboard() {
         <KPI label="Entradas" value={fmtMoney(totals.income)} icon={ArrowUpRight} tone="success" hint="receitas do mês" />
         <KPI label="Saídas" value={fmtMoney(totals.expense)} icon={ArrowDownRight} tone="danger" hint="despesas do mês" />
         <KPI label="Saldo" value={fmtMoney(totals.balance)} icon={Wallet} tone={totals.balance >= 0 ? "success" : "danger"} hint="entradas − saídas" />
-        <KPI label="A receber" value={fmtMoney(pendingReceivable)} icon={TrendingUp} hint={`${receivables.filter((r: any) => r.status === "pending").length} pendentes`} />
+        <KPI label="A receber" value={fmtMoney(pendingReceivable)} icon={TrendingUp} hint={`${receivables.filter((r: any) => r?.status === "pending").length} pendentes`} />
       </div>
 
       {/* Próximos Vencimentos */}
@@ -217,7 +242,7 @@ function Dashboard() {
               </div>
               <div className="space-y-2">
                 {byCategory.slice(0, 6).map((c) => {
-                  const pct = (c.value / totals.expense) * 100;
+                  const pct = totals.expense > 0 ? (c.value / totals.expense) * 100 : 0;
                   return (
                     <div key={c.name} className="flex items-center gap-3 text-sm">
                       <span className="h-2.5 w-2.5 rounded-full" style={{ background: c.color }} />
@@ -249,7 +274,7 @@ function Dashboard() {
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className="truncate">{t.description ?? cat?.name ?? "Lançamento"}</p>
-                      <p className="text-xs text-muted-foreground">{new Date(t.date).toLocaleDateString("pt-BR")}</p>
+                      <p className="text-xs text-muted-foreground">{fmtDate(t.date)}</p>
                     </div>
                     <span className={`tabular font-medium ${t.kind === "income" ? "text-success" : "text-foreground"}`}>
                       {t.kind === "income" ? "+" : "−"} {fmtMoney(t.amount)}
@@ -316,7 +341,7 @@ function DueRow({ item }: { item: DueItem }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{item.label}</p>
-        <p className="text-xs text-muted-foreground">{item.source} • {new Date(item.date).toLocaleDateString("pt-BR")}</p>
+        <p className="text-xs text-muted-foreground">{item.source} • {fmtDate(item.date)}</p>
       </div>
       <span className={`text-xs px-2 py-0.5 rounded-full ${styles.badgeBg} ${styles.badgeFg} whitespace-nowrap`}>
         {urgencyLabel(item.urgency, item.daysLeft)}
