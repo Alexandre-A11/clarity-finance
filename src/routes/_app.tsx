@@ -6,9 +6,9 @@ import {
   ArrowLeftRight,
   CreditCard,
   Repeat,
-  HandCoins,
   TrendingUp,
   FileText,
+  History,
   LogOut,
   Wallet,
 } from "lucide-react";
@@ -23,8 +23,8 @@ const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/transacoes", label: "Transações", icon: ArrowLeftRight },
   { to: "/cartoes", label: "Cartões", icon: CreditCard },
-  { to: "/continuas", label: "Despesas contínuas", icon: Repeat },
-  { to: "/a-receber", label: "A receber", icon: HandCoins },
+  { to: "/continuas", label: "Despesas fixas", icon: Repeat },
+  { to: "/historico", label: "Histórico", icon: History },
   { to: "/investimentos", label: "Investimentos", icon: TrendingUp },
   { to: "/irpf", label: "IRPF", icon: FileText },
 ] as const;

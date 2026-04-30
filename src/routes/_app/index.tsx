@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { useRealtimeQuery } from "@/lib/data-hooks";
-import { fmtMoney, monthRange, monthLabel } from "@/lib/finance";
+import { fmtMoney, monthRange, monthLabel, daysUntil, dueUrgency, type DueUrgency } from "@/lib/finance";
 import { Card } from "@/components/ui/card";
-import { ArrowDownRight, ArrowUpRight, TrendingUp, Wallet, CreditCard as CreditCardIcon } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, TrendingUp, Wallet, CreditCard as CreditCardIcon, AlertCircle, Clock } from "lucide-react";
 import { useMemo } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Link } from "@tanstack/react-router";
@@ -39,15 +39,29 @@ function KPI({ label, value, hint, icon: Icon, tone = "default" }: {
   );
 }
 
+type DueItem = {
+  id: string;
+  label: string;
+  source: string;
+  amount: number;
+  date: string;
+  urgency: DueUrgency;
+  daysLeft: number;
+};
+
 function Dashboard() {
   const { user } = useAuth();
   const range = monthRange();
   const { data: txs } = useRealtimeQuery("transactions", user?.id, (q) =>
     q.gte("date", range.start).lte("date", range.end).order("date", { ascending: false })
   );
+  const { data: allTxs } = useRealtimeQuery("transactions", user?.id, (q) =>
+    q.not("due_date", "is", null).order("due_date", { ascending: true }).limit(100)
+  );
   const { data: cards } = useRealtimeQuery("credit_cards", user?.id);
   const { data: receivables } = useRealtimeQuery("receivables", user?.id);
   const { data: cats } = useRealtimeQuery("categories", user?.id);
+  const { data: ongoing } = useRealtimeQuery("ongoing_expenses", user?.id);
 
   const totals = useMemo(() => {
     const income = txs.filter((t: any) => t.kind === "income").reduce((s: number, t: any) => s + Number(t.amount), 0);
@@ -81,6 +95,70 @@ function Dashboard() {
     });
   }, [cards, txs]);
 
+  // Próximos vencimentos (transações + faturas + assinaturas/parcelamentos)
+  const upcoming = useMemo<DueItem[]>(() => {
+    const items: DueItem[] = [];
+    const today = new Date();
+    const horizon = new Date(); horizon.setDate(today.getDate() + 14);
+
+    // Transactions com due_date e não pagas
+    allTxs.forEach((t: any) => {
+      if (!t.due_date || t.is_paid) return;
+      const cat = cats.find((c: any) => c.id === t.category_id);
+      const u = dueUrgency(t.due_date);
+      if (u === "future") return;
+      items.push({
+        id: `tx-${t.id}`,
+        label: t.description ?? cat?.name ?? "Lançamento",
+        source: cat?.name ?? "Conta",
+        amount: Number(t.amount),
+        date: t.due_date,
+        urgency: u,
+        daysLeft: daysUntil(t.due_date),
+      });
+    });
+
+    // Cartões com next_due_date
+    cards.forEach((c: any) => {
+      if (!c.next_due_date) return;
+      const u = dueUrgency(c.next_due_date);
+      if (u === "future") return;
+      const used = txs.filter((t: any) => t.card_id === c.id).reduce((s: number, t: any) => s + Number(t.amount), 0);
+      items.push({
+        id: `card-${c.id}`,
+        label: `Fatura ${c.name}`,
+        source: "Cartão de crédito",
+        amount: used,
+        date: c.next_due_date,
+        urgency: u,
+        daysLeft: daysUntil(c.next_due_date),
+      });
+    });
+
+    // Assinaturas/parcelamentos com due_day → próximo vencimento neste mês
+    ongoing.forEach((o: any) => {
+      if (!o.due_day) return;
+      const y = today.getFullYear();
+      const m = today.getMonth();
+      let dueDate = new Date(y, m, o.due_day);
+      if (dueDate < today) dueDate = new Date(y, m + 1, o.due_day);
+      if (dueDate > horizon) return;
+      const iso = dueDate.toISOString().slice(0, 10);
+      const u = dueUrgency(iso);
+      items.push({
+        id: `og-${o.id}`,
+        label: o.description,
+        source: o.kind === "subscription" ? "Assinatura" : "Parcelamento",
+        amount: Number(o.monthly_value),
+        date: iso,
+        urgency: u,
+        daysLeft: daysUntil(iso),
+      });
+    });
+
+    return items.sort((a, b) => a.daysLeft - b.daysLeft).slice(0, 8);
+  }, [allTxs, cards, txs, ongoing, cats]);
+
   return (
     <div className="px-6 md:px-10 py-8 max-w-[1400px] mx-auto">
       <div className="flex items-end justify-between mb-8">
@@ -96,6 +174,23 @@ function Dashboard() {
         <KPI label="Saldo" value={fmtMoney(totals.balance)} icon={Wallet} tone={totals.balance >= 0 ? "success" : "danger"} hint="entradas − saídas" />
         <KPI label="A receber" value={fmtMoney(pendingReceivable)} icon={TrendingUp} hint={`${receivables.filter((r: any) => r.status === "pending").length} pendentes`} />
       </div>
+
+      {/* Próximos Vencimentos */}
+      <Card className="p-6 shadow-soft mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-sm font-medium flex items-center gap-2"><AlertCircle className="h-4 w-4 text-primary" /> Próximos vencimentos</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Contas, faturas e mensalidades nos próximos dias</p>
+          </div>
+        </div>
+        {upcoming.length === 0 ? (
+          <div className="py-6 text-center text-sm text-muted-foreground">Nenhum vencimento próximo. 🎉</div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {upcoming.map((u) => <DueRow key={u.id} item={u} />)}
+          </ul>
+        )}
+      </Card>
 
       <div className="grid lg:grid-cols-3 gap-4 mb-8">
         <Card className="p-6 lg:col-span-2 shadow-soft">
@@ -139,7 +234,7 @@ function Dashboard() {
 
         <Card className="p-6 shadow-soft">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-medium">Próximos lançamentos</h2>
+            <h2 className="text-sm font-medium">Lançamentos recentes</h2>
           </div>
           {txs.length === 0 ? (
             <EmptyState message="Nenhum lançamento ainda." />
@@ -210,6 +305,47 @@ function Dashboard() {
       </div>
     </div>
   );
+}
+
+function DueRow({ item }: { item: DueItem }) {
+  const styles = urgencyStyles(item.urgency);
+  return (
+    <li className="flex items-center gap-4 py-3">
+      <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${styles.bg}`}>
+        <Clock className={`h-4 w-4 ${styles.fg}`} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{item.label}</p>
+        <p className="text-xs text-muted-foreground">{item.source} • {new Date(item.date).toLocaleDateString("pt-BR")}</p>
+      </div>
+      <span className={`text-xs px-2 py-0.5 rounded-full ${styles.badgeBg} ${styles.badgeFg} whitespace-nowrap`}>
+        {urgencyLabel(item.urgency, item.daysLeft)}
+      </span>
+      <span className="tabular font-medium text-sm w-24 text-right">{fmtMoney(item.amount)}</span>
+    </li>
+  );
+}
+
+function urgencyLabel(u: DueUrgency, days: number) {
+  if (u === "overdue") return `Atrasado ${Math.abs(days)}d`;
+  if (u === "today") return "Hoje";
+  if (u === "soon") return `Em ${days}d`;
+  return `Em ${days}d`;
+}
+
+function urgencyStyles(u: DueUrgency) {
+  if (u === "overdue" || u === "today") return {
+    bg: "bg-destructive/10", fg: "text-destructive",
+    badgeBg: "bg-destructive/10", badgeFg: "text-destructive",
+  };
+  if (u === "soon") return {
+    bg: "bg-warning/10", fg: "text-warning-foreground",
+    badgeBg: "bg-warning/10", badgeFg: "text-warning-foreground",
+  };
+  return {
+    bg: "bg-primary-soft", fg: "text-primary",
+    badgeBg: "bg-secondary", badgeFg: "text-muted-foreground",
+  };
 }
 
 function EmptyState({ message }: { message: string }) {

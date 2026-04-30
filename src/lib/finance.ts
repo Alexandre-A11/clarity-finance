@@ -22,6 +22,11 @@ export const monthRange = (date = new Date()) => {
 export const monthLabel = (date = new Date()) =>
   date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
+export const MONTH_NAMES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
 export type Lot = { quantity: number; unit_price: number; fees?: number };
 
 export const averagePrice = (lots: Lot[]) => {
@@ -41,4 +46,24 @@ export const installmentDates = (firstDate: string, count: number) => {
     const dt = new Date(y, m - 1 + i, d);
     return dt.toISOString().slice(0, 10);
   });
+};
+
+// Compute days until a date (negative = overdue)
+export const daysUntil = (dateStr: string) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(dateStr);
+  target.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86400000);
+};
+
+export type DueUrgency = "overdue" | "today" | "soon" | "upcoming" | "future";
+
+export const dueUrgency = (dateStr: string): DueUrgency => {
+  const d = daysUntil(dateStr);
+  if (d < 0) return "overdue";
+  if (d === 0) return "today";
+  if (d <= 3) return "soon";
+  if (d <= 7) return "upcoming";
+  return "future";
 };
