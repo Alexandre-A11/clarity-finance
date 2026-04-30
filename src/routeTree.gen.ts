@@ -18,6 +18,7 @@ import { Route as AppInvestimentosRouteImport } from './routes/_app/investimento
 import { Route as AppHistoricoRouteImport } from './routes/_app/historico'
 import { Route as AppContinuasRouteImport } from './routes/_app/continuas'
 import { Route as AppCartoesRouteImport } from './routes/_app/cartoes'
+import { Route as AppAdminRouteImport } from './routes/_app/admin'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -63,10 +64,16 @@ const AppCartoesRoute = AppCartoesRouteImport.update({
   path: '/cartoes',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/auth': typeof AuthRoute
+  '/admin': typeof AppAdminRoute
   '/cartoes': typeof AppCartoesRoute
   '/continuas': typeof AppContinuasRoute
   '/historico': typeof AppHistoricoRoute
@@ -76,6 +83,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/admin': typeof AppAdminRoute
   '/cartoes': typeof AppCartoesRoute
   '/continuas': typeof AppContinuasRoute
   '/historico': typeof AppHistoricoRoute
@@ -88,6 +96,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_app/admin': typeof AppAdminRoute
   '/_app/cartoes': typeof AppCartoesRoute
   '/_app/continuas': typeof AppContinuasRoute
   '/_app/historico': typeof AppHistoricoRoute
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/admin'
     | '/cartoes'
     | '/continuas'
     | '/historico'
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/admin'
     | '/cartoes'
     | '/continuas'
     | '/historico'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/auth'
+    | '/_app/admin'
     | '/_app/cartoes'
     | '/_app/continuas'
     | '/_app/historico'
@@ -200,10 +212,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCartoesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin': {
+      id: '/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppAdminRoute: typeof AppAdminRoute
   AppCartoesRoute: typeof AppCartoesRoute
   AppContinuasRoute: typeof AppContinuasRoute
   AppHistoricoRoute: typeof AppHistoricoRoute
@@ -214,6 +234,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAdminRoute: AppAdminRoute,
   AppCartoesRoute: AppCartoesRoute,
   AppContinuasRoute: AppContinuasRoute,
   AppHistoricoRoute: AppHistoricoRoute,

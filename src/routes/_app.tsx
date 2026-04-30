@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useRole } from "@/lib/use-role";
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -11,6 +12,7 @@ import {
   History,
   LogOut,
   Wallet,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -20,19 +22,22 @@ export const Route = createFileRoute("/_app")({
 });
 
 const NAV = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/transacoes", label: "Transações", icon: ArrowLeftRight },
-  { to: "/cartoes", label: "Cartões", icon: CreditCard },
-  { to: "/continuas", label: "Despesas fixas", icon: Repeat },
-  { to: "/historico", label: "Histórico", icon: History },
-  { to: "/investimentos", label: "Investimentos", icon: TrendingUp },
-  { to: "/irpf", label: "IRPF", icon: FileText },
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, adminOnly: false },
+  { to: "/transacoes", label: "Transações", icon: ArrowLeftRight, adminOnly: false },
+  { to: "/cartoes", label: "Cartões", icon: CreditCard, adminOnly: false },
+  { to: "/continuas", label: "Despesas fixas", icon: Repeat, adminOnly: false },
+  { to: "/historico", label: "Histórico", icon: History, adminOnly: false },
+  { to: "/investimentos", label: "Investimentos", icon: TrendingUp, adminOnly: false },
+  { to: "/irpf", label: "IRPF", icon: FileText, adminOnly: false },
+  { to: "/admin", label: "Administração", icon: ShieldCheck, adminOnly: true },
 ] as const;
 
 function AppLayout() {
   const { user, loading, signOut } = useAuth();
+  const { isAdmin } = useRole();
   const nav = useNavigate();
   const loc = useLocation();
+  const visibleNav = NAV.filter((n) => !n.adminOnly || isAdmin);
 
   useEffect(() => {
     if (!loading && !user) nav({ to: "/auth" });
