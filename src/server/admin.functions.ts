@@ -56,7 +56,7 @@ export const deleteUserCompletely = createServerFn({ method: "POST" })
       "ongoing_expenses", "receivables", "credit_cards", "accounts", "categories", "user_roles", "profiles",
     ] as const;
     for (const table of tables) {
-      const { error } = await supabaseAdmin.from(table).delete().eq(table === "profiles" ? "id" : "user_id", data.userId);
+      const { error } = await (supabaseAdmin.from(table) as any).delete().eq(table === "profiles" ? "id" : "user_id", data.userId);
       if (error) throw new Error(error.message);
     }
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
