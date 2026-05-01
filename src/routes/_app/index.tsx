@@ -5,7 +5,6 @@ import { fmtMoney, monthRange, monthLabel, daysUntil, dueUrgency, fmtDate, type 
 import { Card } from "@/components/ui/card";
 import { ArrowDownRight, ArrowUpRight, TrendingUp, Wallet, CreditCard as CreditCardIcon, AlertCircle, Clock } from "lucide-react";
 import { useMemo } from "react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_app/")({
@@ -227,19 +226,7 @@ function Dashboard() {
             <EmptyState message="Nenhuma despesa este mês." />
           ) : (
             <div className="grid md:grid-cols-2 gap-6 items-center">
-              <div className="h-52">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={byCategory} dataKey="value" innerRadius={50} outerRadius={80} paddingAngle={2}>
-                      {byCategory.map((c, i) => <Cell key={i} fill={c.color} />)}
-                    </Pie>
-                    <Tooltip
-                      formatter={(v: number) => fmtMoney(v)}
-                      contentStyle={{ borderRadius: 12, border: "1px solid var(--border)", fontSize: 12 }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+              <CategoryDonut rows={byCategory} total={totals.expense} />
               <div className="space-y-2">
                 {byCategory.slice(0, 6).map((c) => {
                   const pct = totals.expense > 0 ? (c.value / totals.expense) * 100 : 0;
@@ -348,6 +335,25 @@ function DueRow({ item }: { item: DueItem }) {
       </span>
       <span className="tabular font-medium text-sm w-24 text-right">{fmtMoney(item.amount)}</span>
     </li>
+  );
+}
+
+function CategoryDonut({ rows, total }: { rows: { name: string; value: number; color: string }[]; total: number }) {
+  const safeRows = rows.filter((r) => Number.isFinite(r.value) && r.value > 0);
+  let offset = 0;
+  return (
+    <div className="h-52 flex items-center justify-center">
+      <div className="relative h-40 w-40 rounded-full" style={{ background: safeRows.length ? `conic-gradient(${safeRows.map((r) => {
+        const pct = total > 0 ? (r.value / total) * 100 : 0;
+        const start = offset;
+        offset += pct;
+        return `${r.color} ${start}% ${offset}%`;
+      }).join(", ")})` : "var(--secondary)" }}>
+        <div className="absolute inset-8 rounded-full bg-card flex items-center justify-center text-center">
+          <span className="text-xs text-muted-foreground">{safeRows.length} categorias</span>
+        </div>
+      </div>
+    </div>
   );
 }
 
