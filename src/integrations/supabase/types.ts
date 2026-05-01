@@ -337,7 +337,6 @@ export type Database = {
           email: string | null
           id: string
           name: string | null
-          role: string
           updated_at: string
         }
         Insert: {
@@ -346,7 +345,6 @@ export type Database = {
           email?: string | null
           id: string
           name?: string | null
-          role?: string
           updated_at?: string
         }
         Update: {
@@ -355,7 +353,6 @@ export type Database = {
           email?: string | null
           id?: string
           name?: string | null
-          role?: string
           updated_at?: string
         }
         Relationships: []
@@ -538,15 +535,37 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      is_admin: { Args: { _user_id: string }; Returns: boolean }
+      [_ in never]: never
     }
     Enums: {
       account_type: "checking" | "savings" | "wallet" | "other"
+      app_role: "admin" | "moderator" | "user"
       asset_kind: "stock" | "fii"
       dividend_type: "dividend" | "jcp" | "rendimento"
       ongoing_kind: "subscription" | "installment"
@@ -680,6 +699,7 @@ export const Constants = {
   public: {
     Enums: {
       account_type: ["checking", "savings", "wallet", "other"],
+      app_role: ["admin", "moderator", "user"],
       asset_kind: ["stock", "fii"],
       dividend_type: ["dividend", "jcp", "rendimento"],
       ongoing_kind: ["subscription", "installment"],

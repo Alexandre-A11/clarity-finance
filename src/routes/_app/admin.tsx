@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useRole } from "@/lib/use-role";
-import { supabase } from "@/integrations/supabase/client";
+import { deleteUserCompletely, listAdminUsers, updateUserRole } from "@/server/admin.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,7 +33,7 @@ type ProfileRow = {
   id: string;
   email: string | null;
   name: string | null;
-  role: string | null;
+  role: "admin" | "user";
   created_at: string;
 };
 
@@ -54,14 +54,13 @@ function AdminPage() {
 
   const refetch = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, email, name, role, created_at")
-      .order("created_at", { ascending: false });
-    if (error) {
-      toast.error("Não foi possível carregar usuários");
-    } else {
+    try {
+      const data = await listAdminUsers();
       setProfiles((data ?? []) as ProfileRow[]);
+    } catch (error) {
+      console.error(error);
+      toast.error("Não foi possível carregar usuários");
+      setProfiles([]);
     }
     setLoading(false);
   };
@@ -91,12 +90,13 @@ function AdminPage() {
       toast.error("Você não pode remover seu próprio acesso de administrador.");
       return;
     }
-    const { error } = await supabase.from("profiles").update({ role }).eq("id", p.id);
-    if (error) {
-      toast.error("Não foi possível atualizar o cargo");
-    } else {
+    try {
+      await updateUserRole({ data: { userId: p.id, role } });
       toast.success(role === "admin" ? "Usuário promovido a admin" : "Cargo atualizado");
       refetch();
+    } catch (error) {
+      console.error(error);
+      toast.error("Não foi possível atualizar o cargo");
     }
   };
 
@@ -107,12 +107,13 @@ function AdminPage() {
       setPendingDelete(null);
       return;
     }
-    const { error } = await supabase.from("profiles").delete().eq("id", pendingDelete.id);
-    if (error) {
-      toast.error("Não foi possível excluir o perfil");
-    } else {
-      toast.success("Perfil excluído");
+    try {
+      await deleteUserCompletely({ data: { userId: pendingDelete.id } });
+      toast.success("Conta excluída completamente");
       refetch();
+    } catch (error) {
+      console.error(error);
+      toast.error("Não foi possível excluir a conta");
     }
     setPendingDelete(null);
   };
@@ -196,7 +197,7 @@ function AdminPage() {
                               className="text-destructive focus:text-destructive"
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
-                              Excluir perfil
+                              Excluir conta
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -213,17 +214,16 @@ function AdminPage() {
       <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir perfil?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir conta?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação remove o perfil de <strong>{pendingDelete?.email ?? "—"}</strong> da
-              tabela de usuários. Os dados de autenticação só podem ser removidos pelo
-              backend administrativo.
+              Esta ação remove a conta de <strong>{pendingDelete?.email ?? "—"}</strong>, incluindo
+              login e dados financeiros. Depois disso, o mesmo e-mail poderá ser cadastrado novamente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Excluir
+              Excluir conta
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
