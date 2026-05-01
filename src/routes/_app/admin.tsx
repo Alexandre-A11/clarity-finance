@@ -197,7 +197,7 @@ function AdminPage() {
                               className="text-destructive focus:text-destructive"
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
-                              Excluir perfil
+                              Excluir conta
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -214,17 +214,16 @@ function AdminPage() {
       <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir perfil?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir conta?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação remove o perfil de <strong>{pendingDelete?.email ?? "—"}</strong> da
-              tabela de usuários. Os dados de autenticação só podem ser removidos pelo
-              backend administrativo.
+              Esta ação remove a conta de <strong>{pendingDelete?.email ?? "—"}</strong>, incluindo
+              login e dados financeiros. Depois disso, o mesmo e-mail poderá ser cadastrado novamente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Excluir
+              Excluir conta
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
