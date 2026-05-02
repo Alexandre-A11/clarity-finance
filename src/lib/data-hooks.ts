@@ -46,14 +46,17 @@ export function useRealtimeQuery<TableName extends keyof T>(
   useEffect(() => {
     refetch();
     if (!userId) return;
-    const channel = supabase
-      .channel(`rt:${String(table)}:${userId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: table as string, filter: `user_id=eq.${userId}` },
-        () => refetch(),
-      )
-      .subscribe();
+    // Build channel + register listeners BEFORE subscribing.
+    // Using a unique name per mount avoids reusing an already-subscribed channel.
+    const channel = supabase.channel(
+      `rt:${String(table)}:${userId}:${Math.random().toString(36).slice(2)}`,
+    );
+    channel.on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: table as string, filter: `user_id=eq.${userId}` },
+      () => refetch(),
+    );
+    channel.subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
