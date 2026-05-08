@@ -1,4 +1,24 @@
 // Pure financial helpers (no React) — reused later in React Native
+
+// Parse a "YYYY-MM-DD" string as a LOCAL date (no UTC shift).
+export const parseLocalDate = (dateStr: string | null | undefined): Date | null => {
+  if (!dateStr) return null;
+  const parts = String(dateStr).slice(0, 10).split("-").map(Number);
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null;
+  const [y, m, d] = parts;
+  return new Date(y, m - 1, d);
+};
+
+// Format a Date as YYYY-MM-DD using LOCAL time (no UTC shift).
+export const toLocalISODate = (date = new Date()) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+export const todayISO = () => toLocalISODate(new Date());
+
 export const BRL = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
