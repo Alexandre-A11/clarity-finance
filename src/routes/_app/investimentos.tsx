@@ -374,9 +374,10 @@ function NewLotDialog({ assets, userId, onAssetCreated }: { assets: any[]; userI
   );
 }
 
-function NewDividendDialog({ assets, userId }: { assets: any[]; userId: string }) {
+function NewDividendDialog({ assets, ownedAssets, userId }: { assets: any[]; ownedAssets: any[]; userId: string }) {
+  void assets;
   const [open, setOpen] = useState(false);
-  const [assetId, setAssetId] = useState(""); const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [assetId, setAssetId] = useState(""); const [date, setDate] = useState(todayISO());
   const [gross, setGross] = useState(""); const [net, setNet] = useState("");
   const [type, setType] = useState<"dividend" | "jcp" | "rendimento">("dividend");
   const [broker, setBroker] = useState("");
@@ -398,11 +399,18 @@ function NewDividendDialog({ assets, userId }: { assets: any[]; userId: string }
         <DialogHeader><DialogTitle>Novo provento</DialogTitle></DialogHeader>
         <form onSubmit={submit} className="space-y-3">
           <div>
-            <Label>Ativo</Label>
+            <Label>Ativo (apenas da sua carteira)</Label>
             <Select value={assetId} onValueChange={setAssetId} required>
-              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>{assets.map((a) => <SelectItem key={a.id} value={a.id}>{a.ticker}</SelectItem>)}</SelectContent>
+              <SelectTrigger><SelectValue placeholder={ownedAssets.length ? "Selecione" : "Cadastre uma compra antes"} /></SelectTrigger>
+              <SelectContent>
+                {ownedAssets.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.ticker} — {a.name}</SelectItem>
+                ))}
+              </SelectContent>
             </Select>
+            {ownedAssets.length === 0 && (
+              <p className="text-xs text-muted-foreground mt-1">Você ainda não tem ativos. Lance uma compra primeiro.</p>
+            )}
           </div>
           <div>
             <Label>Tipo</Label>
