@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { useRealtimeQuery } from "@/lib/data-hooks";
-import { fmtMoney, averagePrice } from "@/lib/finance";
+import { fmtMoney, averagePrice, fmtDate, todayISO, parseLocalDate } from "@/lib/finance";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +38,13 @@ function InvestPage() {
     });
     return Array.from(byAsset.values()).map(({ asset, lots }) => {
       const avg = averagePrice(lots);
-      return { asset, ...avg };
+      const sortedLots = [...lots].sort((a: any, b: any) => {
+        const da = parseLocalDate(a.purchase_date ?? a.date)?.getTime() ?? Infinity;
+        const db = parseLocalDate(b.purchase_date ?? b.date)?.getTime() ?? Infinity;
+        return da - db;
+      });
+      const firstPurchase = sortedLots[0]?.purchase_date ?? sortedLots[0]?.date ?? null;
+      return { asset, ...avg, firstPurchase };
     });
   }, [lots, assets]);
 
