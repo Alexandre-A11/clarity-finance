@@ -33,10 +33,7 @@ export const fmtPct = (n: number) =>
 export const monthRange = (date = new Date()) => {
   const start = new Date(date.getFullYear(), date.getMonth(), 1);
   const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-  return {
-    start: start.toISOString().slice(0, 10),
-    end: end.toISOString().slice(0, 10),
-  };
+  return { start: toLocalISODate(start), end: toLocalISODate(end) };
 };
 
 export const monthLabel = (date = new Date()) =>
