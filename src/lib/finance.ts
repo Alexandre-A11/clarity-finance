@@ -1,4 +1,24 @@
 // Pure financial helpers (no React) — reused later in React Native
+
+// Parse a "YYYY-MM-DD" string as a LOCAL date (no UTC shift).
+export const parseLocalDate = (dateStr: string | null | undefined): Date | null => {
+  if (!dateStr) return null;
+  const parts = String(dateStr).slice(0, 10).split("-").map(Number);
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null;
+  const [y, m, d] = parts;
+  return new Date(y, m - 1, d);
+};
+
+// Format a Date as YYYY-MM-DD using LOCAL time (no UTC shift).
+export const toLocalISODate = (date = new Date()) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+export const todayISO = () => toLocalISODate(new Date());
+
 export const BRL = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
@@ -13,10 +33,7 @@ export const fmtPct = (n: number) =>
 export const monthRange = (date = new Date()) => {
   const start = new Date(date.getFullYear(), date.getMonth(), 1);
   const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-  return {
-    start: start.toISOString().slice(0, 10),
-    end: end.toISOString().slice(0, 10),
-  };
+  return { start: toLocalISODate(start), end: toLocalISODate(end) };
 };
 
 export const monthLabel = (date = new Date()) =>
@@ -42,10 +59,7 @@ export const averagePrice = (lots: Lot[]) => {
 // Generate scheduled installment dates (one per month from first_date)
 export const installmentDates = (firstDate: string, count: number) => {
   const [y, m, d] = firstDate.split("-").map(Number);
-  return Array.from({ length: count }, (_, i) => {
-    const dt = new Date(y, m - 1 + i, d);
-    return dt.toISOString().slice(0, 10);
-  });
+  return Array.from({ length: count }, (_, i) => toLocalISODate(new Date(y, m - 1 + i, d)));
 };
 
 // Compute days until a date (negative = overdue). Safe against null/invalid.

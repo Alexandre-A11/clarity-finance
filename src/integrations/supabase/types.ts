@@ -195,6 +195,7 @@ export type Database = {
           date: string
           fees: number
           id: string
+          purchase_date: string | null
           quantity: number
           unit_price: number
           user_id: string
@@ -206,6 +207,7 @@ export type Database = {
           date: string
           fees?: number
           id?: string
+          purchase_date?: string | null
           quantity: number
           unit_price: number
           user_id: string
@@ -217,6 +219,7 @@ export type Database = {
           date?: string
           fees?: number
           id?: string
+          purchase_date?: string | null
           quantity?: number
           unit_price?: number
           user_id?: string
@@ -468,6 +471,7 @@ export type Database = {
           is_installment: boolean
           is_paid: boolean
           kind: Database["public"]["Enums"]["tx_kind"]
+          paid_amount: number | null
           user_id: string
         }
         Insert: {
@@ -485,6 +489,7 @@ export type Database = {
           is_installment?: boolean
           is_paid?: boolean
           kind: Database["public"]["Enums"]["tx_kind"]
+          paid_amount?: number | null
           user_id: string
         }
         Update: {
@@ -502,6 +507,7 @@ export type Database = {
           is_installment?: boolean
           is_paid?: boolean
           kind?: Database["public"]["Enums"]["tx_kind"]
+          paid_amount?: number | null
           user_id?: string
         }
         Relationships: [

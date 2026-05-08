@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { useRealtimeQuery } from "@/lib/data-hooks";
-import { fmtMoney, averagePrice } from "@/lib/finance";
+import { fmtMoney, averagePrice, fmtDate, todayISO, parseLocalDate } from "@/lib/finance";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +38,13 @@ function InvestPage() {
     });
     return Array.from(byAsset.values()).map(({ asset, lots }) => {
       const avg = averagePrice(lots);
-      return { asset, ...avg };
+      const sortedLots = [...lots].sort((a: any, b: any) => {
+        const da = parseLocalDate(a.purchase_date ?? a.date)?.getTime() ?? Infinity;
+        const db = parseLocalDate(b.purchase_date ?? b.date)?.getTime() ?? Infinity;
+        return da - db;
+      });
+      const firstPurchase = sortedLots[0]?.purchase_date ?? sortedLots[0]?.date ?? null;
+      return { asset, ...avg, firstPurchase };
     });
   }, [lots, assets]);
 
@@ -57,7 +63,7 @@ function InvestPage() {
         </div>
         <div className="flex gap-2">
           <NewLotDialog assets={assets} userId={user!.id} onAssetCreated={reloadAssets} />
-          <NewDividendDialog assets={assets} userId={user!.id} />
+          <NewDividendDialog assets={assets} ownedAssets={positions.filter((p) => p.quantity > 0).map((p) => p.asset)} userId={user!.id} />
         </div>
       </div>
 
@@ -146,7 +152,13 @@ function PositionTable({ title, rows }: { title: string; rows: any[] }) {
       </div>
       <table className="w-full text-sm">
         <thead className="text-xs text-muted-foreground">
-          <tr><th className="text-left px-5 py-2">Ativo</th><th className="text-right">Qtd</th><th className="text-right">P. Médio</th><th className="text-right px-5">Custo total</th></tr>
+          <tr>
+            <th className="text-left px-5 py-2">Ativo</th>
+            <th className="text-right">Qtd</th>
+            <th className="text-right">P. Médio</th>
+            <th className="text-center">1ª compra</th>
+            <th className="text-right px-5">Custo total</th>
+          </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
@@ -154,6 +166,7 @@ function PositionTable({ title, rows }: { title: string; rows: any[] }) {
               <td className="px-5 py-3 font-medium">{r.asset.ticker}<p className="text-xs text-muted-foreground font-normal">{r.asset.name}</p></td>
               <td className="text-right tabular">{r.quantity}</td>
               <td className="text-right tabular">{fmtMoney(r.average)}</td>
+              <td className="text-center tabular text-muted-foreground text-xs">{fmtDate(r.firstPurchase)}</td>
               <td className="text-right tabular px-5 font-medium">{fmtMoney(r.cost)}</td>
             </tr>
           ))}
@@ -315,14 +328,15 @@ function NewLotDialog({ assets, userId, onAssetCreated }: { assets: any[]; userI
   const [open, setOpen] = useState(false);
   const [assetId, setAssetId] = useState("");
   const [kind, setKind] = useState<"stock" | "fii">("stock");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayISO());
+  const [purchaseDate, setPurchaseDate] = useState(todayISO());
   const [qty, setQty] = useState(""); const [price, setPrice] = useState(""); const [broker, setBroker] = useState("");
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!assetId) { toast.error("Selecione um ativo"); return; }
     const { error } = await supabase.from("holdings_lots").insert({
-      user_id: userId, asset_id: assetId, date, quantity: Number(qty),
+      user_id: userId, asset_id: assetId, date, purchase_date: purchaseDate, quantity: Number(qty),
       unit_price: Number(price), broker: broker || null,
     } as any);
     if (error) toast.error(error.message); else { toast.success("Compra registrada"); setOpen(false); }
@@ -349,8 +363,10 @@ function NewLotDialog({ assets, userId, onAssetCreated }: { assets: any[]; userI
             <div><Label>Quantidade</Label><Input type="number" step="0.0001" required value={qty} onChange={(e) => setQty(e.target.value)} /></div>
             <div><Label>Preço (R$)</Label><Input type="number" step="0.0001" required value={price} onChange={(e) => setPrice(e.target.value)} /></div>
           </div>
-          <div><Label>Data</Label><Input type="date" required value={date} onChange={(e) => setDate(e.target.value)} /></div>
-          <div><Label>Corretora (opcional)</Label><Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="XP, Clear..." /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Data da compra</Label><Input type="date" required value={purchaseDate} onChange={(e) => { setPurchaseDate(e.target.value); setDate(e.target.value); }} /></div>
+            <div><Label>Corretora (opcional)</Label><Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="XP, Clear..." /></div>
+          </div>
           <Button type="submit" className="w-full">Salvar</Button>
         </form>
       </DialogContent>
@@ -358,9 +374,10 @@ function NewLotDialog({ assets, userId, onAssetCreated }: { assets: any[]; userI
   );
 }
 
-function NewDividendDialog({ assets, userId }: { assets: any[]; userId: string }) {
+function NewDividendDialog({ assets, ownedAssets, userId }: { assets: any[]; ownedAssets: any[]; userId: string }) {
+  void assets;
   const [open, setOpen] = useState(false);
-  const [assetId, setAssetId] = useState(""); const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [assetId, setAssetId] = useState(""); const [date, setDate] = useState(todayISO());
   const [gross, setGross] = useState(""); const [net, setNet] = useState("");
   const [type, setType] = useState<"dividend" | "jcp" | "rendimento">("dividend");
   const [broker, setBroker] = useState("");
@@ -382,11 +399,18 @@ function NewDividendDialog({ assets, userId }: { assets: any[]; userId: string }
         <DialogHeader><DialogTitle>Novo provento</DialogTitle></DialogHeader>
         <form onSubmit={submit} className="space-y-3">
           <div>
-            <Label>Ativo</Label>
+            <Label>Ativo (apenas da sua carteira)</Label>
             <Select value={assetId} onValueChange={setAssetId} required>
-              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>{assets.map((a) => <SelectItem key={a.id} value={a.id}>{a.ticker}</SelectItem>)}</SelectContent>
+              <SelectTrigger><SelectValue placeholder={ownedAssets.length ? "Selecione" : "Cadastre uma compra antes"} /></SelectTrigger>
+              <SelectContent>
+                {ownedAssets.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.ticker} — {a.name}</SelectItem>
+                ))}
+              </SelectContent>
             </Select>
+            {ownedAssets.length === 0 && (
+              <p className="text-xs text-muted-foreground mt-1">Você ainda não tem ativos. Lance uma compra primeiro.</p>
+            )}
           </div>
           <div>
             <Label>Tipo</Label>
