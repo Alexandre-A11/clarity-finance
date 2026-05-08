@@ -1,17 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { useRealtimeQuery } from "@/lib/data-hooks";
-import { fmtMoney, installmentDates } from "@/lib/finance";
+import { fmtMoney, installmentDates, todayISO, fmtDate, parseLocalDate } from "@/lib/finance";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, CreditCard as CardIcon } from "lucide-react";
+import { Plus, CreditCard as CardIcon, Lock } from "lucide-react";
 import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { BrandSelect } from "@/components/brand-select";
+import { ColorSwatchPicker } from "@/components/color-swatch-picker";
 
 export const Route = createFileRoute("/_app/cartoes")({
   component: CartoesPage,
@@ -73,15 +75,23 @@ function CartoesPage() {
             <ul className="divide-y divide-border">
               {installments.map((p: any) => {
                 const card = cards.find((c: any) => c.id === p.card_id);
-                const paid = txs.filter((t: any) => t.installment_purchase_id === p.id && new Date(t.date) <= new Date()).length;
+                const today = new Date();
+                const paid = txs.filter((t: any) => {
+                  const d = parseLocalDate(t.date);
+                  return t.installment_purchase_id === p.id && d && d <= today;
+                }).length;
                 const remaining = p.installments_total - paid;
                 const monthly = Number(p.total_amount) / p.installments_total;
+                const dates = installmentDates(p.first_date, p.installments_total);
+                const last = dates[dates.length - 1];
                 return (
                   <li key={p.id} className="px-5 py-4">
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <p className="text-sm font-medium">{p.description}</p>
-                        <p className="text-xs text-muted-foreground">{card?.name} • {fmtMoney(monthly)}/mês</p>
+                        <p className="text-xs text-muted-foreground">
+                          {card?.name} • {fmtMoney(monthly)}/mês • Última: {fmtDate(last)}
+                        </p>
                       </div>
                       <div className="text-right">
                         <span className="text-sm font-semibold tabular">{paid}/{p.installments_total}</span>
@@ -122,13 +132,16 @@ function NewCardDialog({ userId }: { userId: string }) {
         <DialogHeader><DialogTitle>Novo cartão</DialogTitle></DialogHeader>
         <form onSubmit={submit} className="space-y-3">
           <div><Label>Nome</Label><Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Nubank" /></div>
-          <div><Label>Bandeira</Label><Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Mastercard" /></div>
+          <div className="space-y-1.5"><Label>Bandeira</Label><BrandSelect value={brand} onChange={setBrand} /></div>
           <div><Label>Limite (R$)</Label><Input type="number" step="0.01" required value={limit} onChange={(e) => setLimit(e.target.value)} /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><Label>Fecha dia</Label><Input type="number" min="1" max="31" required value={closing} onChange={(e) => setClosing(e.target.value)} /></div>
             <div><Label>Vence dia</Label><Input type="number" min="1" max="31" required value={due} onChange={(e) => setDue(e.target.value)} /></div>
           </div>
-          <div><Label>Cor</Label><Input type="color" value={color} onChange={(e) => setColor(e.target.value)} /></div>
+          <div className="space-y-2">
+            <Label>Cor do cartão</Label>
+            <ColorSwatchPicker value={color} onChange={setColor} />
+          </div>
           <Button type="submit" className="w-full">Salvar</Button>
         </form>
       </DialogContent>
@@ -138,14 +151,16 @@ function NewCardDialog({ userId }: { userId: string }) {
 
 function NewInstallmentDialog({ cards, cats, userId }: { cards: any[]; cats: any[]; userId: string }) {
   const [open, setOpen] = useState(false);
-  const [cardId, setCardId] = useState(""); const [desc, setDesc] = useState("");
+  const [cardId, setCardId] = useState(cards[0]?.id ?? ""); const [desc, setDesc] = useState("");
   const [total, setTotal] = useState(""); const [n, setN] = useState("12");
-  const [first, setFirst] = useState(new Date().toISOString().slice(0, 10));
+  const [first, setFirst] = useState(todayISO());
   const [catId, setCatId] = useState("");
   const expenseCats = useMemo(() => cats.filter((c) => c.kind === "expense"), [cats]);
+  const selectedCard = cards.find((c) => c.id === cardId);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!cardId) { toast.error("Selecione um cartão"); return; }
     const { data: purchase, error } = await supabase.from("installment_purchases").insert({
       user_id: userId, card_id: cardId, description: desc, total_amount: Number(total),
       installments_total: Number(n), first_date: first, category_id: catId || null,
@@ -168,12 +183,32 @@ function NewInstallmentDialog({ cards, cats, userId }: { cards: any[]; cats: any
       <DialogContent>
         <DialogHeader><DialogTitle>Compra parcelada</DialogTitle></DialogHeader>
         <form onSubmit={submit} className="space-y-3">
+          <div className="rounded-lg bg-primary-soft/40 border border-border p-3 flex items-start gap-2 text-xs">
+            <Lock className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
+            <p className="text-muted-foreground">
+              <span className="text-foreground font-medium">Fonte de pagamento:</span> o cartão selecionado abaixo é debitado a cada parcela. A <span className="text-foreground font-medium">categoria</span> serve apenas para classificar o que foi comprado.
+            </p>
+          </div>
           <div>
-            <Label>Cartão</Label>
+            <Label>Cartão (fonte de pagamento)</Label>
             <Select value={cardId} onValueChange={setCardId} required>
               <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>{cards.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+              <SelectContent>
+                {cards.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-3 w-4 rounded-sm" style={{ background: c.color }} />
+                      {c.name} {c.brand ? `· ${c.brand}` : ""}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
+            {selectedCard && (
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Vence dia {selectedCard.due_day} · fecha dia {selectedCard.closing_day}
+              </p>
+            )}
           </div>
           <div><Label>Descrição</Label><Input required value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Notebook" /></div>
           <div className="grid grid-cols-2 gap-3">
@@ -182,9 +217,9 @@ function NewInstallmentDialog({ cards, cats, userId }: { cards: any[]; cats: any
           </div>
           <div><Label>Data 1ª parcela</Label><Input type="date" required value={first} onChange={(e) => setFirst(e.target.value)} /></div>
           <div>
-            <Label>Categoria</Label>
+            <Label>Categoria do gasto (classificação)</Label>
             <Select value={catId} onValueChange={setCatId}>
-              <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Ex: Eletrônicos, Saúde..." /></SelectTrigger>
               <SelectContent>{expenseCats.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
