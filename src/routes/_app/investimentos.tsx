@@ -63,7 +63,7 @@ function InvestPage() {
         </div>
         <div className="flex gap-2">
           <NewLotDialog assets={assets} userId={user!.id} onAssetCreated={reloadAssets} />
-          <NewDividendDialog assets={assets} userId={user!.id} />
+          <NewDividendDialog assets={assets} ownedAssets={positions.filter((p) => p.quantity > 0).map((p) => p.asset)} userId={user!.id} />
         </div>
       </div>
 
