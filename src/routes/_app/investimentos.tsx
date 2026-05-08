@@ -146,7 +146,13 @@ function PositionTable({ title, rows }: { title: string; rows: any[] }) {
       </div>
       <table className="w-full text-sm">
         <thead className="text-xs text-muted-foreground">
-          <tr><th className="text-left px-5 py-2">Ativo</th><th className="text-right">Qtd</th><th className="text-right">P. Médio</th><th className="text-right px-5">Custo total</th></tr>
+          <tr>
+            <th className="text-left px-5 py-2">Ativo</th>
+            <th className="text-right">Qtd</th>
+            <th className="text-right">P. Médio</th>
+            <th className="text-center">1ª compra</th>
+            <th className="text-right px-5">Custo total</th>
+          </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
@@ -154,6 +160,7 @@ function PositionTable({ title, rows }: { title: string; rows: any[] }) {
               <td className="px-5 py-3 font-medium">{r.asset.ticker}<p className="text-xs text-muted-foreground font-normal">{r.asset.name}</p></td>
               <td className="text-right tabular">{r.quantity}</td>
               <td className="text-right tabular">{fmtMoney(r.average)}</td>
+              <td className="text-center tabular text-muted-foreground text-xs">{fmtDate(r.firstPurchase)}</td>
               <td className="text-right tabular px-5 font-medium">{fmtMoney(r.cost)}</td>
             </tr>
           ))}
