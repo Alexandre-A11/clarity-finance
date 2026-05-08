@@ -59,10 +59,7 @@ export const averagePrice = (lots: Lot[]) => {
 // Generate scheduled installment dates (one per month from first_date)
 export const installmentDates = (firstDate: string, count: number) => {
   const [y, m, d] = firstDate.split("-").map(Number);
-  return Array.from({ length: count }, (_, i) => {
-    const dt = new Date(y, m - 1 + i, d);
-    return dt.toISOString().slice(0, 10);
-  });
+  return Array.from({ length: count }, (_, i) => toLocalISODate(new Date(y, m - 1 + i, d)));
 };
 
 // Compute days until a date (negative = overdue). Safe against null/invalid.
