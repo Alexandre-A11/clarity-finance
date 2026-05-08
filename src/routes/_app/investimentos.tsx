@@ -328,14 +328,15 @@ function NewLotDialog({ assets, userId, onAssetCreated }: { assets: any[]; userI
   const [open, setOpen] = useState(false);
   const [assetId, setAssetId] = useState("");
   const [kind, setKind] = useState<"stock" | "fii">("stock");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayISO());
+  const [purchaseDate, setPurchaseDate] = useState(todayISO());
   const [qty, setQty] = useState(""); const [price, setPrice] = useState(""); const [broker, setBroker] = useState("");
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!assetId) { toast.error("Selecione um ativo"); return; }
     const { error } = await supabase.from("holdings_lots").insert({
-      user_id: userId, asset_id: assetId, date, quantity: Number(qty),
+      user_id: userId, asset_id: assetId, date, purchase_date: purchaseDate, quantity: Number(qty),
       unit_price: Number(price), broker: broker || null,
     } as any);
     if (error) toast.error(error.message); else { toast.success("Compra registrada"); setOpen(false); }
@@ -362,8 +363,10 @@ function NewLotDialog({ assets, userId, onAssetCreated }: { assets: any[]; userI
             <div><Label>Quantidade</Label><Input type="number" step="0.0001" required value={qty} onChange={(e) => setQty(e.target.value)} /></div>
             <div><Label>Preço (R$)</Label><Input type="number" step="0.0001" required value={price} onChange={(e) => setPrice(e.target.value)} /></div>
           </div>
-          <div><Label>Data</Label><Input type="date" required value={date} onChange={(e) => setDate(e.target.value)} /></div>
-          <div><Label>Corretora (opcional)</Label><Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="XP, Clear..." /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Data da compra</Label><Input type="date" required value={purchaseDate} onChange={(e) => { setPurchaseDate(e.target.value); setDate(e.target.value); }} /></div>
+            <div><Label>Corretora (opcional)</Label><Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="XP, Clear..." /></div>
+          </div>
           <Button type="submit" className="w-full">Salvar</Button>
         </form>
       </DialogContent>
