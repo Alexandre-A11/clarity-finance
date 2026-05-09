@@ -1,19 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { useRealtimeQuery } from "@/lib/data-hooks";
-import { fmtMoney, installmentDates, todayISO, fmtDate, parseLocalDate } from "@/lib/finance";
+import { fmtMoney, installmentDates, todayISO, fmtDate, parseLocalDate, monthRange } from "@/lib/finance";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, CreditCard as CardIcon, Lock } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Plus, CreditCard as CardIcon, Lock, Trash2, Eye, EyeOff, Receipt } from "lucide-react";
 import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { BrandSelect } from "@/components/brand-select";
 import { ColorSwatchPicker } from "@/components/color-swatch-picker";
+import { CreditCardVisual } from "@/components/credit-card-visual";
 
 export const Route = createFileRoute("/_app/cartoes")({
   component: CartoesPage,
@@ -25,47 +31,34 @@ function CartoesPage() {
   const { data: txs } = useRealtimeQuery("transactions", user?.id);
   const { data: installments } = useRealtimeQuery("installment_purchases", user?.id);
   const { data: cats } = useRealtimeQuery("categories", user?.id);
+  const [hidden, setHidden] = useState(true);
 
   return (
     <div className="px-6 md:px-10 py-8 max-w-[1100px] mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Cartões de crédito</h1>
           <p className="text-muted-foreground text-sm mt-1">Limite, fatura e parcelas</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <Button variant="outline" size="sm" onClick={() => setHidden((h) => !h)}>
+            {hidden ? <Eye className="h-4 w-4 mr-1.5" /> : <EyeOff className="h-4 w-4 mr-1.5" />}
+            {hidden ? "Mostrar" : "Ocultar"}
+          </Button>
           <NewCardDialog userId={user!.id} />
           {cards.length > 0 && <NewInstallmentDialog cards={cards} cats={cats} userId={user!.id} />}
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-4 mb-8">
+      <div className="grid sm:grid-cols-2 gap-6 mb-10">
         {cards.length === 0 ? (
           <Card className="p-12 text-center sm:col-span-2 shadow-soft">
             <CardIcon className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
             <p className="text-sm text-muted-foreground">Cadastre seu primeiro cartão.</p>
           </Card>
-        ) : cards.map((c: any) => {
-          const used = txs.filter((t: any) => t.card_id === c.id).reduce((s: number, t: any) => s + Number(t.amount), 0);
-          const pct = c.limit_total > 0 ? (used / Number(c.limit_total)) * 100 : 0;
-          return (
-            <Card key={c.id} className="p-5 shadow-soft">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">{c.brand ?? "Cartão"}</p>
-                  <p className="font-medium mt-0.5">{c.name}</p>
-                </div>
-                <div className="h-8 w-12 rounded" style={{ background: c.color }} />
-              </div>
-              <p className="text-2xl font-semibold tabular">{fmtMoney(used)}</p>
-              <p className="text-xs text-muted-foreground tabular">de {fmtMoney(c.limit_total)} • {pct.toFixed(0)}%</p>
-              <div className="h-1.5 bg-secondary rounded-full mt-3 overflow-hidden">
-                <div className="h-full" style={{ width: `${Math.min(pct, 100)}%`, background: pct > 80 ? "var(--destructive)" : "var(--primary)" }} />
-              </div>
-              <p className="text-xs text-muted-foreground mt-3">Fecha dia {c.closing_day} • vence dia {c.due_day}</p>
-            </Card>
-          );
-        })}
+        ) : cards.map((c: any) => (
+          <CardItem key={c.id} card={c} txs={txs} userId={user!.id} hidden={hidden} />
+        ))}
       </div>
 
       {installments.length > 0 && (
@@ -90,7 +83,7 @@ function CartoesPage() {
                       <div>
                         <p className="text-sm font-medium">{p.description}</p>
                         <p className="text-xs text-muted-foreground">
-                          {card?.name} • {fmtMoney(monthly)}/mês • Última: {fmtDate(last)}
+                          {card?.name ?? "Cartão removido"} • {fmtMoney(monthly)}/mês • Última: {fmtDate(last)}
                         </p>
                       </div>
                       <div className="text-right">
@@ -112,16 +105,160 @@ function CartoesPage() {
   );
 }
 
+function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; userId: string; hidden: boolean }) {
+  // Invoice = current month transactions tied to this card
+  const { start, end } = useMemo(() => monthRange(new Date()), []);
+  const invoiceTxs = useMemo(
+    () => txs.filter((t: any) => t.card_id === c.id && t.date >= start && t.date <= end),
+    [txs, c.id, start, end]
+  );
+  const invoiceTotal = invoiceTxs.reduce((s, t: any) => s + Number(t.amount), 0);
+  const invoicePending = invoiceTxs.filter((t: any) => t.is_paid === false).reduce((s, t: any) => s + Number(t.amount), 0);
+
+  // Total used = all open transactions on the card (utilization)
+  const used = txs.filter((t: any) => t.card_id === c.id).reduce((s, t: any) => s + Number(t.amount), 0);
+  const pct = c.limit_total > 0 ? (used / Number(c.limit_total)) * 100 : 0;
+
+  const [paying, setPaying] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const payInvoice = async () => {
+    if (invoicePending <= 0) { toast.error("Não há fatura pendente neste mês."); return; }
+    setBusy(true);
+    // 1) Create consolidated expense in main balance
+    const { error: e1 } = await supabase.from("transactions").insert({
+      user_id: userId,
+      kind: "expense",
+      amount: invoicePending,
+      date: todayISO(),
+      description: `Pagamento fatura — ${c.name}`,
+      is_paid: true,
+      card_id: null,
+    } as any);
+    if (e1) { setBusy(false); toast.error(e1.message); return; }
+    // 2) Mark card transactions as paid
+    const ids = invoiceTxs.filter((t: any) => t.is_paid === false).map((t: any) => t.id);
+    if (ids.length) {
+      const { error: e2 } = await supabase.from("transactions")
+        .update({ is_paid: true } as any).in("id", ids);
+      if (e2) { setBusy(false); toast.error(e2.message); return; }
+    }
+    setBusy(false);
+    setPaying(false);
+    toast.success("Fatura paga");
+  };
+
+  const removeCard = async () => {
+    const { error } = await supabase.from("credit_cards").delete().eq("id", c.id);
+    if (error) toast.error(error.message);
+    else toast.success("Cartão removido");
+  };
+
+  return (
+    <Card className="p-5 shadow-soft">
+      <CreditCardVisual
+        name={c.name}
+        brand={c.brand}
+        color={c.color}
+        holder={c.card_holder_name}
+        lastFour={c.last_four_digits}
+        hidden={hidden}
+      />
+
+      <div className="mt-4 flex items-start justify-between">
+        <div>
+          <p className="text-xs text-muted-foreground">Utilizado</p>
+          <p className="text-2xl font-semibold tabular">
+            {hidden ? "R$ ••••" : fmtMoney(used)}
+          </p>
+          <p className="text-xs text-muted-foreground tabular">
+            de {hidden ? "R$ ••••" : fmtMoney(c.limit_total)} • {pct.toFixed(0)}%
+          </p>
+        </div>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir cartão {c.name}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                As transações antigas serão preservadas (apenas o vínculo com o cartão será removido).
+                Compras parceladas neste cartão e suas parcelas futuras serão excluídas.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={removeCard} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+
+      <div className="h-1.5 bg-secondary rounded-full mt-3 overflow-hidden">
+        <div className="h-full" style={{ width: `${Math.min(pct, 100)}%`, background: pct > 80 ? "var(--destructive)" : "var(--primary)" }} />
+      </div>
+      <p className="text-xs text-muted-foreground mt-3">Fecha dia {c.closing_day} • vence dia {c.due_day}</p>
+
+      {/* Invoice block */}
+      <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <Receipt className="h-3 w-3" /> Fatura do mês
+            </p>
+            <p className="text-lg font-semibold tabular mt-0.5">
+              {hidden ? "R$ ••••" : fmtMoney(invoiceTotal)}
+            </p>
+            <p className="text-xs text-muted-foreground tabular">
+              {invoiceTxs.length} lançamento{invoiceTxs.length !== 1 ? "s" : ""} ·
+              {" "}pendente {hidden ? "••••" : fmtMoney(invoicePending)}
+            </p>
+          </div>
+          <AlertDialog open={paying} onOpenChange={setPaying}>
+            <AlertDialogTrigger asChild>
+              <Button size="sm" disabled={invoicePending <= 0 || busy}>
+                Pagar fatura
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Pagar fatura de {c.name}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Será criada uma despesa consolidada de <b>{fmtMoney(invoicePending)}</b> no saldo principal e os lançamentos do cartão neste mês serão marcados como pagos.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={payInvoice}>Confirmar pagamento</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function NewCardDialog({ userId }: { userId: string }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(""); const [brand, setBrand] = useState("");
   const [limit, setLimit] = useState(""); const [closing, setClosing] = useState("1"); const [due, setDue] = useState("10");
   const [color, setColor] = useState("#3b82f6");
+  const [holder, setHolder] = useState("");
+  const [last4, setLast4] = useState("");
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (last4 && !/^\d{4}$/.test(last4)) { toast.error("Informe exatamente 4 dígitos"); return; }
     const { error } = await supabase.from("credit_cards").insert({
       user_id: userId, name, brand: brand || null, limit_total: Number(limit),
       closing_day: Number(closing), due_day: Number(due), color,
+      card_holder_name: holder || null,
+      last_four_digits: last4 || null,
     } as any);
     if (error) toast.error(error.message); else { toast.success("Cartão criado"); setOpen(false); }
   };
@@ -131,8 +268,21 @@ function NewCardDialog({ userId }: { userId: string }) {
       <DialogContent>
         <DialogHeader><DialogTitle>Novo cartão</DialogTitle></DialogHeader>
         <form onSubmit={submit} className="space-y-3">
-          <div><Label>Nome</Label><Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Nubank" /></div>
+          <div><Label>Apelido</Label><Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Nubank" /></div>
           <div className="space-y-1.5"><Label>Bandeira</Label><BrandSelect value={brand} onChange={setBrand} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Nome impresso</Label><Input value={holder} onChange={(e) => setHolder(e.target.value.toUpperCase())} placeholder="MARIA SILVA" /></div>
+            <div>
+              <Label>Últimos 4 dígitos</Label>
+              <Input
+                inputMode="numeric"
+                maxLength={4}
+                value={last4}
+                onChange={(e) => setLast4(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                placeholder="1234"
+              />
+            </div>
+          </div>
           <div><Label>Limite (R$)</Label><Input type="number" step="0.01" required value={limit} onChange={(e) => setLimit(e.target.value)} /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><Label>Fecha dia</Label><Input type="number" min="1" max="31" required value={closing} onChange={(e) => setClosing(e.target.value)} /></div>
@@ -142,6 +292,9 @@ function NewCardDialog({ userId }: { userId: string }) {
             <Label>Cor do cartão</Label>
             <ColorSwatchPicker value={color} onChange={setColor} />
           </div>
+          <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+            <Lock className="h-3 w-3" /> Por segurança, não armazenamos número completo nem CVV.
+          </p>
           <Button type="submit" className="w-full">Salvar</Button>
         </form>
       </DialogContent>
