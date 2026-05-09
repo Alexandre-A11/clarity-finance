@@ -5,7 +5,7 @@ import { fmtMoney, fmtDate, MONTH_NAMES, parseLocalDate, installmentDates } from
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowDownRight, ArrowUpRight, Calendar, ChevronLeft } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CategoryIcon } from "@/components/icon-picker";
 
