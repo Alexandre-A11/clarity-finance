@@ -1,14 +1,15 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CardBrandLogo } from "@/components/card-brand-logo";
 
 export const CARD_BRANDS = [
-  { value: "Mastercard", emoji: "💳", color: "#eb001b" },
-  { value: "Visa", emoji: "💳", color: "#1a1f71" },
-  { value: "American Express", emoji: "💳", color: "#2e77bb" },
-  { value: "Elo", emoji: "💳", color: "#fff100" },
-  { value: "Hipercard", emoji: "💳", color: "#b3131b" },
-  { value: "Diners Club", emoji: "💳", color: "#0079be" },
-  { value: "Discover", emoji: "💳", color: "#ff6000" },
-  { value: "Outro", emoji: "💳", color: "#64748b" },
+  { value: "Mastercard" },
+  { value: "Visa" },
+  { value: "American Express" },
+  { value: "Elo" },
+  { value: "Hipercard" },
+  { value: "Diners Club" },
+  { value: "Discover" },
+  { value: "Outro" },
 ] as const;
 
 export function BrandSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -19,11 +20,9 @@ export function BrandSelect({ value, onChange }: { value: string; onChange: (v: 
         {CARD_BRANDS.map((b) => (
           <SelectItem key={b.value} value={b.value}>
             <span className="inline-flex items-center gap-2">
-              <span
-                className="h-4 w-6 rounded-sm border border-border/60"
-                style={{ background: b.color }}
-                aria-hidden
-              />
+              <span className="inline-flex items-center justify-center h-5 w-9 rounded bg-slate-900">
+                <CardBrandLogo brand={b.value} className="h-3.5 w-auto" />
+              </span>
               {b.value}
             </span>
           </SelectItem>
