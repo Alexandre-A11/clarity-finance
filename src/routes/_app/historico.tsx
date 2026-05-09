@@ -5,7 +5,7 @@ import { fmtMoney, fmtDate, MONTH_NAMES, parseLocalDate, installmentDates } from
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowDownRight, ArrowUpRight, Calendar, ChevronLeft } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CategoryIcon } from "@/components/icon-picker";
 
@@ -160,13 +160,41 @@ function HistoricoPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Histórico</h1>
           <p className="text-muted-foreground text-sm mt-1">Análise mês a mês</p>
         </div>
-        <div className="w-32">
-          <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-            </SelectContent>
-          </Select>
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-9 w-9"
+            disabled={!years.some((y) => y < year)}
+            onClick={() => {
+              const prev = years.filter((y) => y < year)[0];
+              if (prev !== undefined) setYear(prev);
+            }}
+            aria-label="Ano anterior"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="w-28">
+            <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-9 w-9"
+            disabled={!years.some((y) => y > year)}
+            onClick={() => {
+              const next = [...years].reverse().filter((y) => y > year)[0];
+              if (next !== undefined) setYear(next);
+            }}
+            aria-label="Próximo ano"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 

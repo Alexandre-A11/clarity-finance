@@ -220,7 +220,10 @@ function PayDialog({ tx, onClose }: { tx: any; onClose: () => void }) {
 }
 
 function TxForm({ cats, userId, onDone }: { cats: any[]; userId: string; onDone: () => void }) {
+  const { data: cards } = useRealtimeQuery("credit_cards", userId);
   const [kind, setKind] = useState<"income" | "expense">("expense");
+  const [method, setMethod] = useState<"cash" | "card">("cash");
+  const [cardId, setCardId] = useState<string>("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayISO());
   const [dueDate, setDueDate] = useState("");
@@ -231,14 +234,22 @@ function TxForm({ cats, userId, onDone }: { cats: any[]; userId: string; onDone:
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (kind === "expense" && method === "card" && !cardId) {
+      toast.error("Selecione qual cartão foi usado");
+      return;
+    }
     setBusy(true);
+    const isCardExpense = kind === "expense" && method === "card";
     const { error } = await supabase.from("transactions").insert({
       user_id: userId, kind, amount: Number(amount), date,
       due_date: dueDate || null,
       description: description || null,
       category_id: categoryId || null,
-      // Despesas com vencimento começam como não pagas; receitas/sem vencimento como pagas
-      is_paid: kind === "expense" && dueDate ? false : true,
+      card_id: isCardExpense ? cardId : null,
+      // Despesa no cartão entra como pendente até a fatura ser paga.
+      // Despesa com vencimento à vista também começa pendente.
+      // Receitas/sem vencimento como pagas.
+      is_paid: kind === "expense" && (isCardExpense || dueDate) ? false : true,
     } as any);
     setBusy(false);
     if (error) toast.error(error.message);
@@ -264,11 +275,49 @@ function TxForm({ cats, userId, onDone }: { cats: any[]; userId: string; onDone:
       </div>
 
       {kind === "expense" && (
-        <div className="space-y-2">
-          <Label>Data de vencimento (opcional)</Label>
-          <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-          <p className="text-xs text-muted-foreground">Se preencher, a despesa entra como pendente até você confirmar o pagamento.</p>
-        </div>
+        <>
+          <div className="space-y-2">
+            <Label>Forma de pagamento</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" size="sm" variant={method === "cash" ? "default" : "outline"} onClick={() => setMethod("cash")}>
+                Dinheiro / Pix / Débito
+              </Button>
+              <Button type="button" size="sm" variant={method === "card" ? "default" : "outline"} onClick={() => setMethod("card")}>
+                Cartão de crédito
+              </Button>
+            </div>
+          </div>
+
+          {method === "card" && (
+            <div className="space-y-2">
+              <Label>Cartão usado</Label>
+              <Select value={cardId} onValueChange={setCardId} required>
+                <SelectTrigger><SelectValue placeholder="Selecione o cartão" /></SelectTrigger>
+                <SelectContent>
+                  {cards.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">Cadastre um cartão primeiro.</div>
+                  ) : cards.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-3 w-4 rounded-sm" style={{ background: c.color }} />
+                        {c.name} {c.brand ? `· ${c.brand}` : ""}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">A despesa entra na fatura do cartão e será marcada como paga ao quitar a fatura.</p>
+            </div>
+          )}
+
+          {method === "cash" && (
+            <div className="space-y-2">
+              <Label>Data de vencimento (opcional)</Label>
+              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              <p className="text-xs text-muted-foreground">Se preencher, a despesa entra como pendente até você confirmar o pagamento.</p>
+            </div>
+          )}
+        </>
       )}
 
       <div className="space-y-2">

@@ -104,11 +104,13 @@ export type Database = {
       credit_cards: {
         Row: {
           brand: string | null
+          card_holder_name: string | null
           closing_day: number
           color: string
           created_at: string
           due_day: number
           id: string
+          last_four_digits: string | null
           limit_total: number
           name: string
           next_due_date: string | null
@@ -116,11 +118,13 @@ export type Database = {
         }
         Insert: {
           brand?: string | null
+          card_holder_name?: string | null
           closing_day?: number
           color?: string
           created_at?: string
           due_day?: number
           id?: string
+          last_four_digits?: string | null
           limit_total?: number
           name: string
           next_due_date?: string | null
@@ -128,11 +132,13 @@ export type Database = {
         }
         Update: {
           brand?: string | null
+          card_holder_name?: string | null
           closing_day?: number
           color?: string
           created_at?: string
           due_day?: number
           id?: string
+          last_four_digits?: string | null
           limit_total?: number
           name?: string
           next_due_date?: string | null
