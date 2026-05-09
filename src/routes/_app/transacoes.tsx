@@ -220,7 +220,10 @@ function PayDialog({ tx, onClose }: { tx: any; onClose: () => void }) {
 }
 
 function TxForm({ cats, userId, onDone }: { cats: any[]; userId: string; onDone: () => void }) {
+  const { data: cards } = useRealtimeQuery("credit_cards", userId);
   const [kind, setKind] = useState<"income" | "expense">("expense");
+  const [method, setMethod] = useState<"cash" | "card">("cash");
+  const [cardId, setCardId] = useState<string>("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayISO());
   const [dueDate, setDueDate] = useState("");
@@ -231,14 +234,22 @@ function TxForm({ cats, userId, onDone }: { cats: any[]; userId: string; onDone:
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (kind === "expense" && method === "card" && !cardId) {
+      toast.error("Selecione qual cartão foi usado");
+      return;
+    }
     setBusy(true);
+    const isCardExpense = kind === "expense" && method === "card";
     const { error } = await supabase.from("transactions").insert({
       user_id: userId, kind, amount: Number(amount), date,
       due_date: dueDate || null,
       description: description || null,
       category_id: categoryId || null,
-      // Despesas com vencimento começam como não pagas; receitas/sem vencimento como pagas
-      is_paid: kind === "expense" && dueDate ? false : true,
+      card_id: isCardExpense ? cardId : null,
+      // Despesa no cartão entra como pendente até a fatura ser paga.
+      // Despesa com vencimento à vista também começa pendente.
+      // Receitas/sem vencimento como pagas.
+      is_paid: kind === "expense" && (isCardExpense || dueDate) ? false : true,
     } as any);
     setBusy(false);
     if (error) toast.error(error.message);
