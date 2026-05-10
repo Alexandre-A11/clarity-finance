@@ -501,7 +501,7 @@ function PartialPaymentForm({ receivableId, userId, maxAmount, onDone }: { recei
     <form onSubmit={submit} className="space-y-3">
       <div><Label>Valor recebido (R$)</Label><Input type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
       <p className="text-xs text-muted-foreground">Saldo devedor: {fmtMoney(maxAmount)}</p>
-      <div><Label>Data</Label><Input type="date" required value={date} onChange={(e) => setDate(e.target.value)} /></div>
+      <div><Label>Data</Label><DatePicker value={date} onChange={setDate} /></div>
       <div><Label>Observação (opcional)</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
       <Button type="submit" className="w-full">Salvar</Button>
     </form>
