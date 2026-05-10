@@ -117,7 +117,7 @@ function InvestPage() {
                     <li key={d.id} className="flex items-center gap-4 px-5 py-3">
                       <div className="flex-1">
                         <p className="text-sm font-medium">{a?.ticker} <span className="text-xs text-muted-foreground font-normal">• {d.type === "jcp" ? "JCP" : d.type === "rendimento" ? "Rendimento" : "Dividendo"}</span></p>
-                        <p className="text-xs text-muted-foreground">{new Date(d.payment_date).toLocaleDateString("pt-BR")} • {d.broker ?? "—"}</p>
+                        <p className="text-xs text-muted-foreground">{fmtDate(d.payment_date)} • {d.broker ?? "—"}</p>
                       </div>
                       <span className="tabular font-medium text-success">{fmtMoney(d.net)}</span>
                     </li>
