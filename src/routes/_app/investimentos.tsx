@@ -13,6 +13,7 @@ import { Plus, TrendingUp, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAssets } from "@/lib/data-hooks";
+import { DatePicker } from "@/components/date-picker";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/investimentos")({
