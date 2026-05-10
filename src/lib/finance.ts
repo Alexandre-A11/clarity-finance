@@ -24,8 +24,25 @@ export const BRL = new Intl.NumberFormat("pt-BR", {
   currency: "BRL",
 });
 
+// Global privacy mode (synced via PrivacyProvider in src/lib/privacy-context.tsx).
+// When enabled, monetary formatters mask the value.
+let _privacyMode = false;
+export const setPrivacyMode = (v: boolean) => {
+  _privacyMode = v;
+};
+export const isPrivacyMode = () => _privacyMode;
+export const PRIVATE_MASK = "•••••";
+
 export const fmtMoney = (n: number | null | undefined) =>
-  BRL.format(Number(n ?? 0));
+  _privacyMode ? `R$ ${PRIVATE_MASK}` : BRL.format(Number(n ?? 0));
+
+export const fmtNumber = (n: number | null | undefined, digits = 2) =>
+  _privacyMode
+    ? PRIVATE_MASK
+    : Number(n ?? 0).toLocaleString("pt-BR", {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits,
+      });
 
 export const fmtPct = (n: number) =>
   `${n >= 0 ? "↑" : "↓"} ${Math.abs(n).toFixed(1)}%`;
