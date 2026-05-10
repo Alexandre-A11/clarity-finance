@@ -60,10 +60,12 @@ function LancamentosTab() {
   const [paying, setPaying] = useState<any | null>(null);
   const [showFuture, setShowFuture] = useState(false);
 
-  // Hide future installments from the main list (e.g. parcela 5/12 que vence em meses futuros)
+  // Main list = real cash flow only. Credit-card purchases (card_id != null)
+  // live exclusively inside the card's invoice and must NOT appear here.
+  const cashFlowTxs = allTxs.filter((t: any) => !t.card_id);
   const { end: monthEnd } = monthRange(new Date());
-  const txs = showFuture ? allTxs : allTxs.filter((t: any) => (t.date ?? "") <= monthEnd);
-  const hiddenCount = allTxs.length - txs.length;
+  const txs = showFuture ? cashFlowTxs : cashFlowTxs.filter((t: any) => (t.date ?? "") <= monthEnd);
+  const hiddenCount = cashFlowTxs.length - txs.length;
 
   const remove = async (id: string) => {
     const { error } = await supabase.from("transactions").delete().eq("id", id);
