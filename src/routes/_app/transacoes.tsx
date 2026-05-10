@@ -237,10 +237,12 @@ function PayDialog({ tx, onClose }: { tx: any; onClose: () => void }) {
   );
 }
 
+type PayMethod = "checking" | "pix" | "cash" | "card";
+
 function TxForm({ cats, userId, onDone }: { cats: any[]; userId: string; onDone: () => void }) {
   const { data: cards } = useRealtimeQuery("credit_cards", userId);
   const [kind, setKind] = useState<"income" | "expense">("expense");
-  const [method, setMethod] = useState<"cash" | "card">("cash");
+  const [method, setMethod] = useState<PayMethod>("checking");
   const [cardId, setCardId] = useState<string>("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayISO());
@@ -264,9 +266,6 @@ function TxForm({ cats, userId, onDone }: { cats: any[]; userId: string; onDone:
       description: description || null,
       category_id: categoryId || null,
       card_id: isCardExpense ? cardId : null,
-      // Despesa no cartão entra como pendente até a fatura ser paga.
-      // Despesa com vencimento à vista também começa pendente.
-      // Receitas/sem vencimento como pagas.
       is_paid: kind === "expense" && (isCardExpense || dueDate) ? false : true,
     } as any);
     setBusy(false);
@@ -296,14 +295,18 @@ function TxForm({ cats, userId, onDone }: { cats: any[]; userId: string; onDone:
         <>
           <div className="space-y-2">
             <Label>Forma de pagamento</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <Button type="button" size="sm" variant={method === "cash" ? "default" : "outline"} onClick={() => setMethod("cash")}>
-                Dinheiro / Pix / Débito
-              </Button>
-              <Button type="button" size="sm" variant={method === "card" ? "default" : "outline"} onClick={() => setMethod("card")}>
-                Cartão de crédito
-              </Button>
-            </div>
+            <Select value={method} onValueChange={(v) => setMethod(v as PayMethod)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="checking">Conta corrente</SelectItem>
+                <SelectItem value="pix">Pix</SelectItem>
+                <SelectItem value="cash">Dinheiro</SelectItem>
+                <SelectItem value="card">Cartão de crédito</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">
+              Como você pagou — diferente da <b>categoria</b> abaixo, que descreve o que foi gasto.
+            </p>
           </div>
 
           {method === "card" && (
@@ -324,11 +327,11 @@ function TxForm({ cats, userId, onDone }: { cats: any[]; userId: string; onDone:
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">A despesa entra na fatura do cartão e será marcada como paga ao quitar a fatura.</p>
+              <p className="text-xs text-muted-foreground">A despesa entra na fatura desse cartão e é quitada quando você pagar a fatura.</p>
             </div>
           )}
 
-          {method === "cash" && (
+          {method !== "card" && (
             <div className="space-y-2">
               <Label>Data de vencimento (opcional)</Label>
               <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
@@ -339,9 +342,9 @@ function TxForm({ cats, userId, onDone }: { cats: any[]; userId: string; onDone:
       )}
 
       <div className="space-y-2">
-        <Label>Categoria</Label>
+        <Label>Categoria do gasto</Label>
         <Select value={categoryId} onValueChange={setCategoryId}>
-          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+          <SelectTrigger><SelectValue placeholder="Ex: Alimentação, Lazer, Saúde..." /></SelectTrigger>
           <SelectContent>
             {filtered.map((c: any) => (
               <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
