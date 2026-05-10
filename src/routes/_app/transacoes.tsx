@@ -51,12 +51,18 @@ function TransacoesPage() {
 
 function LancamentosTab() {
   const { user } = useAuth();
-  const { data: txs } = useRealtimeQuery("transactions", user?.id, (q) =>
-    q.order("date", { ascending: false }).limit(200)
+  const { data: allTxs } = useRealtimeQuery("transactions", user?.id, (q) =>
+    q.order("date", { ascending: false }).limit(500)
   );
   const { data: cats } = useRealtimeQuery("categories", user?.id);
   const [open, setOpen] = useState(false);
   const [paying, setPaying] = useState<any | null>(null);
+  const [showFuture, setShowFuture] = useState(false);
+
+  // Hide future installments from the main list (e.g. parcela 5/12 que vence em meses futuros)
+  const { end: monthEnd } = monthRange(new Date());
+  const txs = showFuture ? allTxs : allTxs.filter((t: any) => (t.date ?? "") <= monthEnd);
+  const hiddenCount = allTxs.length - txs.length;
 
   const remove = async (id: string) => {
     const { error } = await supabase.from("transactions").delete().eq("id", id);
