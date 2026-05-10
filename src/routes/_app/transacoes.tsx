@@ -76,9 +76,11 @@ function LancamentosTab() {
     <>
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div className="text-xs text-muted-foreground">
-          {showFuture
-            ? `Mostrando todas as transações (${allTxs.length}).`
+          Fluxo de caixa real (entradas e saídas da conta).
+          {" "}{showFuture
+            ? `Mostrando todas (${cashFlowTxs.length}).`
             : `Mostrando até o mês atual${hiddenCount > 0 ? ` · ${hiddenCount} parcela(s) futura(s) oculta(s)` : ""}.`}
+          {" "}<span className="opacity-70">Compras no cartão aparecem na fatura do cartão.</span>
         </div>
         <div className="flex items-center gap-2">
           {hiddenCount > 0 && (
