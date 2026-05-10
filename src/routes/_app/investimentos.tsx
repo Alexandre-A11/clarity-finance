@@ -13,6 +13,7 @@ import { Plus, TrendingUp, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAssets } from "@/lib/data-hooks";
+import { DatePicker } from "@/components/date-picker";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/investimentos")({
@@ -364,7 +365,7 @@ function NewLotDialog({ assets, userId, onAssetCreated }: { assets: any[]; userI
             <div><Label>Preço (R$)</Label><Input type="number" step="0.0001" required value={price} onChange={(e) => setPrice(e.target.value)} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><Label>Data da compra</Label><Input type="date" required value={purchaseDate} onChange={(e) => { setPurchaseDate(e.target.value); setDate(e.target.value); }} /></div>
+            <div><Label>Data da compra</Label><DatePicker value={purchaseDate} onChange={(v) => { setPurchaseDate(v); setDate(v); }} /></div>
             <div><Label>Corretora (opcional)</Label><Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="XP, Clear..." /></div>
           </div>
           <Button type="submit" className="w-full">Salvar</Button>
@@ -427,7 +428,7 @@ function NewDividendDialog({ assets, ownedAssets, userId }: { assets: any[]; own
             <div><Label>Bruto (R$)</Label><Input type="number" step="0.01" required value={gross} onChange={(e) => setGross(e.target.value)} /></div>
             <div><Label>Líquido (R$)</Label><Input type="number" step="0.01" value={net} onChange={(e) => setNet(e.target.value)} /></div>
           </div>
-          <div><Label>Data pagamento</Label><Input type="date" required value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <div><Label>Data pagamento</Label><DatePicker value={date} onChange={setDate} /></div>
           <div><Label>Corretora</Label><Input value={broker} onChange={(e) => setBroker(e.target.value)} /></div>
           <Button type="submit" className="w-full">Salvar</Button>
         </form>

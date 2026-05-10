@@ -12,6 +12,7 @@ import { Plus, Repeat, CalendarClock, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { DatePicker } from "@/components/date-picker";
 
 export const Route = createFileRoute("/_app/continuas")({
   component: ContinuasPage,
@@ -228,7 +229,7 @@ function Form({ kind, userId, onDone }: { kind: "subscription" | "installment"; 
         </>
       )}
 
-      <div><Label>Início</Label><Input type="date" required value={start} onChange={(e) => setStart(e.target.value)} /></div>
+      <div><Label>Início</Label><DatePicker value={start} onChange={setStart} /></div>
       <Button type="submit" className="w-full">Salvar</Button>
     </form>
   );

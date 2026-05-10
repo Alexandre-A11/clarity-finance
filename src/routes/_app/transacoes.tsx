@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CategoryIcon } from "@/components/icon-picker";
 import { CategoryManagerTrigger } from "@/components/category-manager";
+import { DatePicker } from "@/components/date-picker";
 
 export const Route = createFileRoute("/_app/transacoes")({
   component: TransacoesPage,
@@ -59,10 +60,12 @@ function LancamentosTab() {
   const [paying, setPaying] = useState<any | null>(null);
   const [showFuture, setShowFuture] = useState(false);
 
-  // Hide future installments from the main list (e.g. parcela 5/12 que vence em meses futuros)
+  // Main list = real cash flow only. Credit-card purchases (card_id != null)
+  // live exclusively inside the card's invoice and must NOT appear here.
+  const cashFlowTxs = allTxs.filter((t: any) => !t.card_id);
   const { end: monthEnd } = monthRange(new Date());
-  const txs = showFuture ? allTxs : allTxs.filter((t: any) => (t.date ?? "") <= monthEnd);
-  const hiddenCount = allTxs.length - txs.length;
+  const txs = showFuture ? cashFlowTxs : cashFlowTxs.filter((t: any) => (t.date ?? "") <= monthEnd);
+  const hiddenCount = cashFlowTxs.length - txs.length;
 
   const remove = async (id: string) => {
     const { error } = await supabase.from("transactions").delete().eq("id", id);
@@ -73,9 +76,11 @@ function LancamentosTab() {
     <>
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div className="text-xs text-muted-foreground">
-          {showFuture
-            ? `Mostrando todas as transações (${allTxs.length}).`
+          Fluxo de caixa real (entradas e saídas da conta).
+          {" "}{showFuture
+            ? `Mostrando todas (${cashFlowTxs.length}).`
             : `Mostrando até o mês atual${hiddenCount > 0 ? ` · ${hiddenCount} parcela(s) futura(s) oculta(s)` : ""}.`}
+          {" "}<span className="opacity-70">Compras no cartão aparecem na fatura do cartão.</span>
         </div>
         <div className="flex items-center gap-2">
           {hiddenCount > 0 && (
@@ -287,7 +292,7 @@ function TxForm({ cats, userId, onDone }: { cats: any[]; userId: string; onDone:
         </div>
         <div className="space-y-2">
           <Label>Data do lançamento</Label>
-          <Input type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+          <DatePicker value={date} onChange={setDate} />
         </div>
       </div>
 
@@ -334,7 +339,7 @@ function TxForm({ cats, userId, onDone }: { cats: any[]; userId: string; onDone:
           {method !== "card" && (
             <div className="space-y-2">
               <Label>Data de vencimento (opcional)</Label>
-              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              <DatePicker value={dueDate} onChange={setDueDate} placeholder="Sem vencimento" allowClear />
               <p className="text-xs text-muted-foreground">Se preencher, a despesa entra como pendente até você confirmar o pagamento.</p>
             </div>
           )}
@@ -496,7 +501,7 @@ function PartialPaymentForm({ receivableId, userId, maxAmount, onDone }: { recei
     <form onSubmit={submit} className="space-y-3">
       <div><Label>Valor recebido (R$)</Label><Input type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
       <p className="text-xs text-muted-foreground">Saldo devedor: {fmtMoney(maxAmount)}</p>
-      <div><Label>Data</Label><Input type="date" required value={date} onChange={(e) => setDate(e.target.value)} /></div>
+      <div><Label>Data</Label><DatePicker value={date} onChange={setDate} /></div>
       <div><Label>Observação (opcional)</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
       <Button type="submit" className="w-full">Salvar</Button>
     </form>
@@ -522,7 +527,7 @@ function NewReceivableForm({ userId, onDone }: { userId: string; onDone: () => v
       <div><Label>Quem deve</Label><Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="João" /></div>
       <div className="grid grid-cols-2 gap-3">
         <div><Label>Valor (R$)</Label><Input type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
-        <div><Label>Prazo (opcional)</Label><Input type="date" value={due} onChange={(e) => setDue(e.target.value)} /></div>
+        <div><Label>Prazo (opcional)</Label><DatePicker value={due} onChange={setDue} placeholder="Sem prazo" allowClear /></div>
       </div>
       <div><Label>Observações</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
       <Button type="submit" className="w-full">Salvar</Button>
