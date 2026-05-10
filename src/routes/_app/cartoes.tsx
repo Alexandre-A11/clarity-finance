@@ -50,9 +50,9 @@ function CartoesPage() {
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-6 mb-10">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
         {cards.length === 0 ? (
-          <Card className="p-12 text-center sm:col-span-2 shadow-soft">
+          <Card className="p-12 text-center sm:col-span-2 lg:col-span-3 shadow-soft">
             <CardIcon className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
             <p className="text-sm text-muted-foreground">Cadastre seu primeiro cartão.</p>
           </Card>
