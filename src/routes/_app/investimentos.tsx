@@ -428,7 +428,7 @@ function NewDividendDialog({ assets, ownedAssets, userId }: { assets: any[]; own
             <div><Label>Bruto (R$)</Label><Input type="number" step="0.01" required value={gross} onChange={(e) => setGross(e.target.value)} /></div>
             <div><Label>Líquido (R$)</Label><Input type="number" step="0.01" value={net} onChange={(e) => setNet(e.target.value)} /></div>
           </div>
-          <div><Label>Data pagamento</Label><Input type="date" required value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <div><Label>Data pagamento</Label><DatePicker value={date} onChange={setDate} /></div>
           <div><Label>Corretora</Label><Input value={broker} onChange={(e) => setBroker(e.target.value)} /></div>
           <Button type="submit" className="w-full">Salvar</Button>
         </form>
