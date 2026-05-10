@@ -33,7 +33,7 @@ function CartoesPage() {
   const { data: txs } = useRealtimeQuery("transactions", user?.id);
   const { data: installments } = useRealtimeQuery("installment_purchases", user?.id);
   const { data: cats } = useRealtimeQuery("categories", user?.id);
-  const [hidden, setHidden] = useState(true);
+  const { hidden } = usePrivacy();
 
   return (
     <div className="px-6 md:px-10 py-8 max-w-[1100px] mx-auto">
@@ -43,10 +43,6 @@ function CartoesPage() {
           <p className="text-muted-foreground text-sm mt-1">Limite, fatura e parcelas</p>
         </div>
         <div className="flex gap-2 items-center">
-          <Button variant="outline" size="sm" onClick={() => setHidden((h) => !h)}>
-            {hidden ? <Eye className="h-4 w-4 mr-1.5" /> : <EyeOff className="h-4 w-4 mr-1.5" />}
-            {hidden ? "Mostrar" : "Ocultar"}
-          </Button>
           <NewCardDialog userId={user!.id} />
           {cards.length > 0 && <NewInstallmentDialog cards={cards} cats={cats} userId={user!.id} />}
         </div>
