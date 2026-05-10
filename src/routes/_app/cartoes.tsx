@@ -155,15 +155,17 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
   };
 
   return (
-    <Card className="p-5 shadow-soft">
-      <CreditCardVisual
-        name={c.name}
-        brand={c.brand}
-        color={c.color}
-        holder={c.card_holder_name}
-        lastFour={c.last_four_digits}
-        hidden={hidden}
-      />
+    <Card className="p-4 shadow-soft">
+      <div className="mx-auto w-full max-w-[280px]">
+        <CreditCardVisual
+          name={c.name}
+          brand={c.brand}
+          color={c.color}
+          holder={c.card_holder_name}
+          lastFour={c.last_four_digits}
+          hidden={hidden}
+        />
+      </div>
 
       <div className="mt-4 flex items-start justify-between">
         <div>
