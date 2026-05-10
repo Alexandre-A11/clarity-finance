@@ -13,13 +13,15 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, CreditCard as CardIcon, Lock, Trash2, Eye, EyeOff, Receipt } from "lucide-react";
+import { Plus, CreditCard as CardIcon, Lock, Trash2, Receipt } from "lucide-react";
 import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { BrandSelect } from "@/components/brand-select";
 import { ColorSwatchPicker } from "@/components/color-swatch-picker";
 import { CreditCardVisual } from "@/components/credit-card-visual";
+import { DatePicker } from "@/components/date-picker";
+import { usePrivacy } from "@/lib/privacy-context";
 
 export const Route = createFileRoute("/_app/cartoes")({
   component: CartoesPage,
