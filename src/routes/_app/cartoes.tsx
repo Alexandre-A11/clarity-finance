@@ -118,33 +118,6 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
   const pct = c.limit_total > 0 ? (used / Number(c.limit_total)) * 100 : 0;
 
   const [paying, setPaying] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  const payInvoice = async () => {
-    if (invoicePending <= 0) { toast.error("Não há fatura pendente neste mês."); return; }
-    setBusy(true);
-    // 1) Create consolidated expense in main balance
-    const { error: e1 } = await supabase.from("transactions").insert({
-      user_id: userId,
-      kind: "expense",
-      amount: invoicePending,
-      date: todayISO(),
-      description: `Pagamento fatura — ${c.name}`,
-      is_paid: true,
-      card_id: null,
-    } as any);
-    if (e1) { setBusy(false); toast.error(e1.message); return; }
-    // 2) Mark card transactions as paid
-    const ids = invoiceTxs.filter((t: any) => t.is_paid === false).map((t: any) => t.id);
-    if (ids.length) {
-      const { error: e2 } = await supabase.from("transactions")
-        .update({ is_paid: true } as any).in("id", ids);
-      if (e2) { setBusy(false); toast.error(e2.message); return; }
-    }
-    setBusy(false);
-    setPaying(false);
-    toast.success("Fatura paga");
-  };
 
   const removeCard = async () => {
     const { error } = await supabase.from("credit_cards").delete().eq("id", c.id);
@@ -168,11 +141,9 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
       <div className="mt-4 flex items-start justify-between">
         <div>
           <p className="text-xs text-muted-foreground">Utilizado</p>
-          <p className="text-2xl font-semibold tabular">
-            {hidden ? "R$ ••••" : fmtMoney(used)}
-          </p>
+          <p className="text-2xl font-semibold tabular">{fmtMoney(used)}</p>
           <p className="text-xs text-muted-foreground tabular">
-            de {hidden ? "R$ ••••" : fmtMoney(c.limit_total)} • {pct.toFixed(0)}%
+            de {fmtMoney(c.limit_total)} • {pct.toFixed(0)}%
           </p>
         </div>
         <AlertDialog>
@@ -211,36 +182,150 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
               <Receipt className="h-3 w-3" /> Fatura do mês
             </p>
-            <p className="text-lg font-semibold tabular mt-0.5">
-              {hidden ? "R$ ••••" : fmtMoney(invoiceTotal)}
-            </p>
+            <p className="text-lg font-semibold tabular mt-0.5">{fmtMoney(invoiceTotal)}</p>
             <p className="text-xs text-muted-foreground tabular">
               {invoiceTxs.length} lançamento{invoiceTxs.length !== 1 ? "s" : ""} ·
-              {" "}pendente {hidden ? "••••" : fmtMoney(invoicePending)}
+              {" "}pendente {fmtMoney(invoicePending)}
             </p>
           </div>
-          <AlertDialog open={paying} onOpenChange={setPaying}>
-            <AlertDialogTrigger asChild>
-              <Button size="sm" disabled={invoicePending <= 0 || busy}>
-                Pagar fatura
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Pagar fatura de {c.name}?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Será criada uma despesa consolidada de <b>{fmtMoney(invoicePending)}</b> no saldo principal e os lançamentos do cartão neste mês serão marcados como pagos.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={payInvoice}>Confirmar pagamento</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <Button size="sm" disabled={invoicePending <= 0} onClick={() => setPaying(true)}>
+            Pagar fatura
+          </Button>
         </div>
       </div>
+
+      {paying && (
+        <PayInvoiceDialog
+          card={c}
+          invoiceTxs={invoiceTxs}
+          invoicePending={invoicePending}
+          userId={userId}
+          onClose={() => setPaying(false)}
+        />
+      )}
     </Card>
+  );
+}
+
+function PayInvoiceDialog({
+  card,
+  invoiceTxs,
+  invoicePending,
+  userId,
+  onClose,
+}: {
+  card: any;
+  invoiceTxs: any[];
+  invoicePending: number;
+  userId: string;
+  onClose: () => void;
+}) {
+  const [amount, setAmount] = useState(invoicePending.toFixed(2));
+  const [interest, setInterest] = useState("0");
+  const [busy, setBusy] = useState(false);
+
+  const paid = Number(amount) || 0;
+  const fees = Number(interest) || 0;
+  const cashOut = paid + fees;
+  const remaining = Math.max(invoicePending - paid, 0);
+  const isPartial = remaining > 0.009;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (paid <= 0) { toast.error("Informe um valor a pagar."); return; }
+    if (paid > invoicePending + 0.009) { toast.error("Valor maior que a fatura."); return; }
+    setBusy(true);
+
+    // 1) Cash outflow (single consolidated expense)
+    const today = todayISO();
+    const label = `Pagamento fatura — ${card.name}${fees > 0 ? " (+ juros/multa)" : ""}`;
+    const { error: e1 } = await supabase.from("transactions").insert({
+      user_id: userId,
+      kind: "expense",
+      amount: cashOut,
+      date: today,
+      description: label,
+      is_paid: true,
+      card_id: null,
+    } as any);
+    if (e1) { setBusy(false); toast.error(e1.message); return; }
+
+    // 2) Mark all current pending invoice txs as paid
+    const ids = invoiceTxs.filter((t: any) => t.is_paid === false).map((t: any) => t.id);
+    if (ids.length) {
+      const { error: e2 } = await supabase
+        .from("transactions")
+        .update({ is_paid: true } as any)
+        .in("id", ids);
+      if (e2) { setBusy(false); toast.error(e2.message); return; }
+    }
+
+    // 3) Roll-over remaining balance into next month's invoice
+    if (isPartial) {
+      const now = new Date();
+      const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const { error: e3 } = await supabase.from("transactions").insert({
+        user_id: userId,
+        kind: "expense",
+        amount: remaining,
+        date: toLocalISODate(next),
+        description: `Saldo devedor fatura anterior — ${card.name}`,
+        is_paid: false,
+        card_id: card.id,
+      } as any);
+      if (e3) { setBusy(false); toast.error(e3.message); return; }
+    }
+
+    setBusy(false);
+    onClose();
+    toast.success(isPartial ? "Pagamento parcial registrado" : "Fatura paga");
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Pagar fatura — {card.name}</DialogTitle></DialogHeader>
+        <form onSubmit={submit} className="space-y-4">
+          <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Valor da fatura</span>
+              <span className="tabular font-medium">{fmtMoney(invoicePending)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">{invoiceTxs.length} lançamento(s) do mês</span>
+              <span className="tabular text-muted-foreground">total {fmtMoney(invoiceTxs.reduce((s, t: any) => s + Number(t.amount), 0))}</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Valor a pagar (R$)</Label>
+            <Input type="number" step="0.01" min="0" required value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <p className="text-[11px] text-muted-foreground">
+              Pague o total ou um valor parcial — o restante migra automaticamente para a próxima fatura.
+            </p>
+            {isPartial && (
+              <p className="text-xs text-warning tabular">
+                Saldo devedor de {fmtMoney(remaining)} ficará na fatura do próximo mês.
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Juros / multa por atraso (opcional)</Label>
+            <Input type="number" step="0.01" min="0" value={interest} onChange={(e) => setInterest(e.target.value)} />
+          </div>
+
+          <div className="rounded-lg border border-border p-3 text-sm flex justify-between">
+            <span className="text-muted-foreground">Total debitado da conta</span>
+            <span className="tabular font-semibold">{fmtMoney(cashOut)}</span>
+          </div>
+
+          <Button type="submit" className="w-full" disabled={busy || cashOut <= 0}>
+            {busy ? "Salvando..." : "Confirmar pagamento"}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
