@@ -71,16 +71,28 @@ function LancamentosTab() {
 
   return (
     <>
-      <div className="flex justify-end mb-4">
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-1.5" /> Nova</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Nova transação</DialogTitle></DialogHeader>
-            <TxForm cats={cats} userId={user!.id} onDone={() => setOpen(false)} />
-          </DialogContent>
-        </Dialog>
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+        <div className="text-xs text-muted-foreground">
+          {showFuture
+            ? `Mostrando todas as transações (${allTxs.length}).`
+            : `Mostrando até o mês atual${hiddenCount > 0 ? ` · ${hiddenCount} parcela(s) futura(s) oculta(s)` : ""}.`}
+        </div>
+        <div className="flex items-center gap-2">
+          {hiddenCount > 0 && (
+            <Button size="sm" variant="ghost" onClick={() => setShowFuture((v) => !v)}>
+              {showFuture ? "Ocultar parcelas futuras" : "Mostrar parcelas futuras"}
+            </Button>
+          )}
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm"><Plus className="h-4 w-4 mr-1.5" /> Nova</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Nova transação</DialogTitle></DialogHeader>
+              <TxForm cats={cats} userId={user!.id} onDone={() => setOpen(false)} />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Card className="shadow-soft overflow-hidden">
