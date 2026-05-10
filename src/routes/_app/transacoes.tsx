@@ -527,7 +527,7 @@ function NewReceivableForm({ userId, onDone }: { userId: string; onDone: () => v
       <div><Label>Quem deve</Label><Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="João" /></div>
       <div className="grid grid-cols-2 gap-3">
         <div><Label>Valor (R$)</Label><Input type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
-        <div><Label>Prazo (opcional)</Label><Input type="date" value={due} onChange={(e) => setDue(e.target.value)} /></div>
+        <div><Label>Prazo (opcional)</Label><DatePicker value={due} onChange={setDue} placeholder="Sem prazo" allowClear /></div>
       </div>
       <div><Label>Observações</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
       <Button type="submit" className="w-full">Salvar</Button>
