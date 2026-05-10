@@ -339,7 +339,7 @@ function TxForm({ cats, userId, onDone }: { cats: any[]; userId: string; onDone:
           {method !== "card" && (
             <div className="space-y-2">
               <Label>Data de vencimento (opcional)</Label>
-              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              <DatePicker value={dueDate} onChange={setDueDate} placeholder="Sem vencimento" allowClear />
               <p className="text-xs text-muted-foreground">Se preencher, a despesa entra como pendente até você confirmar o pagamento.</p>
             </div>
           )}
