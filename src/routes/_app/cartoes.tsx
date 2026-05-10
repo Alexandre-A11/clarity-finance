@@ -453,7 +453,7 @@ function NewInstallmentDialog({ cards, cats, userId }: { cards: any[]; cats: any
             <div><Label>Total (R$)</Label><Input type="number" step="0.01" required value={total} onChange={(e) => setTotal(e.target.value)} /></div>
             <div><Label>Nº parcelas</Label><Input type="number" min="1" max="60" required value={n} onChange={(e) => setN(e.target.value)} /></div>
           </div>
-          <div><Label>Data 1ª parcela</Label><Input type="date" required value={first} onChange={(e) => setFirst(e.target.value)} /></div>
+          <div><Label>Data 1ª parcela</Label><DatePicker value={first} onChange={setFirst} /></div>
           <div>
             <Label>Categoria do gasto (classificação)</Label>
             <Select value={catId} onValueChange={setCatId}>
