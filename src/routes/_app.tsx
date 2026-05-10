@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, Link, useNavigate, useLocation } from "@tansta
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useRole } from "@/lib/use-role";
+import { usePrivacy } from "@/lib/privacy-context";
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -13,6 +14,8 @@ import {
   LogOut,
   Wallet,
   ShieldCheck,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
