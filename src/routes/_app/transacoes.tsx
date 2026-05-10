@@ -292,7 +292,7 @@ function TxForm({ cats, userId, onDone }: { cats: any[]; userId: string; onDone:
         </div>
         <div className="space-y-2">
           <Label>Data do lançamento</Label>
-          <Input type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+          <DatePicker value={date} onChange={setDate} />
         </div>
       </div>
 
