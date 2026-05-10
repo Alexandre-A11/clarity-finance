@@ -38,6 +38,7 @@ const NAV = [
 function AppLayout() {
   const { user, loading, signOut } = useAuth();
   const { isAdmin } = useRole();
+  const { hidden, toggle } = usePrivacy();
   const nav = useNavigate();
   const loc = useLocation();
   const visibleNav = NAV.filter((n) => !n.adminOnly || isAdmin);
