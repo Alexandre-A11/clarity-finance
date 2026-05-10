@@ -365,7 +365,7 @@ function NewLotDialog({ assets, userId, onAssetCreated }: { assets: any[]; userI
             <div><Label>Preço (R$)</Label><Input type="number" step="0.0001" required value={price} onChange={(e) => setPrice(e.target.value)} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><Label>Data da compra</Label><Input type="date" required value={purchaseDate} onChange={(e) => { setPurchaseDate(e.target.value); setDate(e.target.value); }} /></div>
+            <div><Label>Data da compra</Label><DatePicker value={purchaseDate} onChange={(v) => { setPurchaseDate(v); setDate(v); }} /></div>
             <div><Label>Corretora (opcional)</Label><Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="XP, Clear..." /></div>
           </div>
           <Button type="submit" className="w-full">Salvar</Button>
