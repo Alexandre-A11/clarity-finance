@@ -1,6 +1,7 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/lib/auth-context";
+import { PrivacyProvider } from "@/lib/privacy-context";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
