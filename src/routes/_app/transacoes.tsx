@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CategoryIcon } from "@/components/icon-picker";
 import { CategoryManagerTrigger } from "@/components/category-manager";
+import { DatePicker } from "@/components/date-picker";
 
 export const Route = createFileRoute("/_app/transacoes")({
   component: TransacoesPage,
