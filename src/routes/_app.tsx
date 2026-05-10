@@ -94,6 +94,16 @@ function AppLayout() {
             <p className="text-xs text-muted-foreground">Conectado como</p>
             <p className="text-sm font-medium truncate">{user.email}</p>
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2"
+            onClick={toggle}
+            aria-label={hidden ? "Mostrar valores" : "Ocultar valores"}
+          >
+            {hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+            {hidden ? "Mostrar valores" : "Ocultar valores"}
+          </Button>
           <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={() => signOut()}>
             <LogOut className="h-4 w-4" />
             Sair
@@ -109,9 +119,14 @@ function AppLayout() {
           </div>
           <span className="font-semibold text-sm">Finanças</span>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => signOut()}>
-          <LogOut className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={toggle} aria-label={hidden ? "Mostrar valores" : "Ocultar valores"}>
+            {hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => signOut()}>
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </div>
       </header>
 
       {/* Mobile bottom nav */}
