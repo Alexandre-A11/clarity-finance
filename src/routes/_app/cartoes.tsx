@@ -104,6 +104,8 @@ function CartoesPage() {
 }
 
 function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; userId: string; hidden: boolean }) {
+  void userId;
+  const nav = useNavigate();
   // Invoice = current month transactions tied to this card
   const { start, end } = useMemo(() => monthRange(new Date()), []);
   const invoiceTxs = useMemo(
@@ -116,8 +118,6 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
   // Total used = all open transactions on the card (utilization)
   const used = txs.filter((t: any) => t.card_id === c.id).reduce((s, t: any) => s + Number(t.amount), 0);
   const pct = c.limit_total > 0 ? (used / Number(c.limit_total)) * 100 : 0;
-
-  const [paying, setPaying] = useState(false);
 
   const removeCard = async () => {
     const { error } = await supabase.from("credit_cards").delete().eq("id", c.id);
