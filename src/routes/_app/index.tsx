@@ -292,15 +292,18 @@ function Dashboard() {
             </Card>
           ) : (
             cardsWithUsage.map((c: any) => (
-              <Card key={c.id} className="p-5 shadow-soft">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground">{c.brand ?? "Cartão"}</p>
-                    <p className="font-medium mt-0.5">{c.name}</p>
-                  </div>
-                  <div className="h-7 w-10 rounded" style={{ background: c.color }} />
+              <Card key={c.id} className="p-4 shadow-soft">
+                <div className="mx-auto w-full max-w-[240px]">
+                  <CreditCardVisual
+                    name={c.name}
+                    brand={c.brand}
+                    color={c.color}
+                    holder={c.card_holder_name}
+                    lastFour={c.last_four_digits}
+                    hidden={hidden}
+                  />
                 </div>
-                <div className="space-y-2">
+                <div className="mt-3 space-y-2">
                   <div className="flex justify-between text-xs text-muted-foreground tabular">
                     <span>{fmtMoney(c.used)} usados</span>
                     <span>de {fmtMoney(c.limit_total)}</span>
