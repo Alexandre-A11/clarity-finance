@@ -70,10 +70,11 @@ function AdminPage() {
   }, [isAdmin]);
 
   const kpis = useMemo(() => {
-    const total = profiles.length;
+    const list = Array.isArray(profiles) ? profiles : [];
+    const total = list.length;
     const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const recent = profiles.filter((p) => new Date(p.created_at).getTime() >= cutoff).length;
-    const admins = profiles.filter((p) => p.role === "admin").length;
+    const recent = list.filter((p) => new Date(p.created_at).getTime() >= cutoff).length;
+    const admins = list.filter((p) => p.role === "admin").length;
     return { total, recent, admins };
   }, [profiles]);
 
