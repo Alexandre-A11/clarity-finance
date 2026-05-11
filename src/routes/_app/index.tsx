@@ -52,6 +52,7 @@ type DueItem = {
 
 function Dashboard() {
   const { user } = useAuth();
+  const { hidden } = usePrivacy();
   const range = monthRange();
   const { data: txsData } = useRealtimeQuery("transactions", user?.id, (q) =>
     q.gte("date", range.start).lte("date", range.end).order("date", { ascending: false })
