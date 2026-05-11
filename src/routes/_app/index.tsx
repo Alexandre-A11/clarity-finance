@@ -6,6 +6,8 @@ import { Card } from "@/components/ui/card";
 import { ArrowDownRight, ArrowUpRight, TrendingUp, Wallet, CreditCard as CreditCardIcon, AlertCircle, Clock } from "lucide-react";
 import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
+import { CreditCardVisual } from "@/components/credit-card-visual";
+import { usePrivacy } from "@/lib/privacy-context";
 
 export const Route = createFileRoute("/_app/")({
   component: Dashboard,
