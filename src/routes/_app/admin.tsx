@@ -56,7 +56,7 @@ function AdminPage() {
     setLoading(true);
     try {
       const data = await listAdminUsers();
-      setProfiles((data ?? []) as ProfileRow[]);
+      setProfiles(Array.isArray(data) ? (data as ProfileRow[]) : []);
     } catch (error) {
       console.error(error);
       toast.error("Não foi possível carregar usuários");
