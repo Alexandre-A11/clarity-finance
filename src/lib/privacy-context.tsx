@@ -28,8 +28,12 @@ export function PrivacyProvider({ children }: { children: ReactNode }) {
     }
   });
 
+  // Sync the module-level flag DURING render so that any fmtMoney() called
+  // in the same render pass reads the new value (the previous useEffect
+  // approach updated AFTER children rendered → required a manual refresh).
+  setPrivacyMode(hidden);
+
   useEffect(() => {
-    setPrivacyMode(hidden);
     try {
       window.localStorage.setItem(STORAGE_KEY, hidden ? "1" : "0");
     } catch {
