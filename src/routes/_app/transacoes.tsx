@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { useRealtimeQuery } from "@/lib/data-hooks";
-import { fmtMoney, fmtDate, todayISO, parseLocalDate, monthRange } from "@/lib/finance";
+import { fmtMoney, fmtDate, todayISO, monthRange, toLocalISODate } from "@/lib/finance";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,19 +9,61 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Trash2, HandCoins, Check } from "lucide-react";
-import { useState } from "react";
+import {
+  Plus, Trash2, Check, ArrowUpDown,
+  Landmark, Smartphone, Banknote, CreditCard as CardLucide, Receipt,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CategoryIcon } from "@/components/icon-picker";
 import { CategoryManagerTrigger } from "@/components/category-manager";
 import { DatePicker } from "@/components/date-picker";
+import { usePrivacy } from "@/lib/privacy-context";
+
+type TxSearch = {
+  action?: "pay-invoice";
+  cardId?: string;
+};
 
 export const Route = createFileRoute("/_app/transacoes")({
+  validateSearch: (s: Record<string, unknown>): TxSearch => ({
+    action: s.action === "pay-invoice" ? "pay-invoice" : undefined,
+    cardId: typeof s.cardId === "string" ? s.cardId : undefined,
+  }),
   component: TransacoesPage,
 });
 
+type PayMethod = "checking" | "pix" | "cash" | "card" | "invoice";
+
+const METHOD_META: Record<PayMethod, { label: string; Icon: React.ElementType; color: string }> = {
+  checking: { label: "Conta corrente", Icon: Landmark, color: "var(--primary)" },
+  pix:      { label: "Pix",             Icon: Smartphone, color: "#10b981" },
+  cash:     { label: "Dinheiro",        Icon: Banknote, color: "#f59e0b" },
+  card:     { label: "Cartão",          Icon: CardLucide, color: "#8b5cf6" },
+  invoice:  { label: "Pagto. Fatura",   Icon: Receipt, color: "#0ea5e9" },
+};
+
+function MethodBadge({ method }: { method?: PayMethod | null }) {
+  const m = (method && METHOD_META[method]) ? method : "checking";
+  const { label, Icon, color } = METHOD_META[m as PayMethod];
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full"
+      style={{ background: `color-mix(in oklab, ${color} 12%, transparent)`, color }}
+      title={label}
+    >
+      <Icon className="h-3 w-3" />
+      <span className="hidden sm:inline">{label}</span>
+    </span>
+  );
+}
+
 function TransacoesPage() {
+  // Privacy: subscribe so fmtMoney re-renders globally on this page when toggled.
+  usePrivacy();
+  const search = useSearch({ from: "/_app/transacoes" });
+
   return (
     <div className="px-6 md:px-10 py-8 max-w-[1200px] mx-auto">
       <div className="mb-6 flex items-end justify-between gap-3 flex-wrap">
@@ -39,7 +81,7 @@ function TransacoesPage() {
         </TabsList>
 
         <TabsContent value="lancamentos" className="mt-6">
-          <LancamentosTab />
+          <LancamentosTab initialAction={search.action} initialCardId={search.cardId} />
         </TabsContent>
 
         <TabsContent value="receber" className="mt-6">
@@ -50,22 +92,66 @@ function TransacoesPage() {
   );
 }
 
-function LancamentosTab() {
+type SortKey = "date" | "description" | "method";
+
+function LancamentosTab({ initialAction, initialCardId }: { initialAction?: string; initialCardId?: string }) {
   const { user } = useAuth();
+  const nav = useNavigate();
   const { data: allTxs } = useRealtimeQuery("transactions", user?.id, (q) =>
-    q.order("date", { ascending: false }).limit(500)
+    q.order("date", { ascending: false }).limit(2000)
   );
   const { data: cats } = useRealtimeQuery("categories", user?.id);
   const [open, setOpen] = useState(false);
   const [paying, setPaying] = useState<any | null>(null);
   const [showFuture, setShowFuture] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [pageSize, setPageSize] = useState(20);
 
-  // Main list = real cash flow only. Credit-card purchases (card_id != null)
-  // live exclusively inside the card's invoice and must NOT appear here.
-  const cashFlowTxs = allTxs.filter((t: any) => !t.card_id);
+  // Auto-open form if we arrived from "Pagar fatura" on /cartoes
+  useEffect(() => {
+    if (initialAction === "pay-invoice") {
+      setOpen(true);
+      // clear search params after opening
+      nav({ to: "/transacoes", search: {}, replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialAction]);
+
+  // Cash-flow view = exclude pending card purchases (those belong to the invoice).
+  // Invoice-payment txs themselves stay in the list (they are the actual cash out).
+  const cashFlowTxs = useMemo(
+    () => allTxs.filter((t: any) => !t.card_id),
+    [allTxs],
+  );
   const { end: monthEnd } = monthRange(new Date());
-  const txs = showFuture ? cashFlowTxs : cashFlowTxs.filter((t: any) => (t.date ?? "") <= monthEnd);
-  const hiddenCount = cashFlowTxs.length - txs.length;
+  const visibleTxs = showFuture ? cashFlowTxs : cashFlowTxs.filter((t: any) => (t.date ?? "") <= monthEnd);
+  const hiddenCount = cashFlowTxs.length - visibleTxs.length;
+
+  const sorted = useMemo(() => {
+    const arr = [...visibleTxs];
+    arr.sort((a: any, b: any) => {
+      let cmp = 0;
+      if (sortKey === "date") {
+        cmp = (a.date ?? "").localeCompare(b.date ?? "");
+      } else if (sortKey === "description") {
+        const an = (a.description ?? cats.find((c: any) => c.id === a.category_id)?.name ?? "").toString();
+        const bn = (b.description ?? cats.find((c: any) => c.id === b.category_id)?.name ?? "").toString();
+        cmp = an.localeCompare(bn, "pt-BR", { sensitivity: "base" });
+      } else if (sortKey === "method") {
+        cmp = (a.payment_method ?? "checking").localeCompare(b.payment_method ?? "checking");
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [visibleTxs, sortKey, sortDir, cats]);
+
+  const pageRows = sorted.slice(0, pageSize);
+
+  const toggleSort = (key: SortKey) => {
+    if (key === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir(key === "date" ? "desc" : "asc"); }
+  };
 
   const remove = async (id: string) => {
     const { error } = await supabase.from("transactions").delete().eq("id", id);
@@ -80,7 +166,6 @@ function LancamentosTab() {
           {" "}{showFuture
             ? `Mostrando todas (${cashFlowTxs.length}).`
             : `Mostrando até o mês atual${hiddenCount > 0 ? ` · ${hiddenCount} parcela(s) futura(s) oculta(s)` : ""}.`}
-          {" "}<span className="opacity-70">Compras no cartão aparecem na fatura do cartão.</span>
         </div>
         <div className="flex items-center gap-2">
           {hiddenCount > 0 && (
@@ -88,20 +173,35 @@ function LancamentosTab() {
               {showFuture ? "Ocultar parcelas futuras" : "Mostrar parcelas futuras"}
             </Button>
           )}
+          <Select value={`${sortKey}:${sortDir}`} onValueChange={(v) => { const [k, d] = v.split(":") as [SortKey, "asc"|"desc"]; setSortKey(k); setSortDir(d); }}>
+            <SelectTrigger className="h-9 w-[180px]"><ArrowUpDown className="h-3.5 w-3.5 mr-1 opacity-60" /><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="date:desc">Data (recente)</SelectItem>
+              <SelectItem value="date:asc">Data (antiga)</SelectItem>
+              <SelectItem value="description:asc">A → Z</SelectItem>
+              <SelectItem value="description:desc">Z → A</SelectItem>
+              <SelectItem value="method:asc">Meio de pagamento</SelectItem>
+            </SelectContent>
+          </Select>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="h-4 w-4 mr-1.5" /> Nova</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>Nova transação</DialogTitle></DialogHeader>
-              <TxForm cats={cats} userId={user!.id} onDone={() => setOpen(false)} />
+              <TxForm
+                cats={cats}
+                userId={user!.id}
+                onDone={() => setOpen(false)}
+                preselectInvoiceCardId={initialAction === "pay-invoice" ? initialCardId : undefined}
+              />
             </DialogContent>
           </Dialog>
         </div>
       </div>
 
       <Card className="shadow-soft overflow-hidden">
-        {txs.length === 0 ? (
+        {pageRows.length === 0 ? (
           <div className="p-12 text-center text-sm text-muted-foreground">
             Nenhuma transação. Clique em <b>Nova</b> para começar.
           </div>
@@ -110,39 +210,55 @@ function LancamentosTab() {
             <table className="w-full text-sm">
               <thead className="text-xs text-muted-foreground bg-muted/40">
                 <tr>
-                  <th className="text-left px-5 py-3 font-medium">Descrição</th>
+                  <th className="text-left px-5 py-3 font-medium cursor-pointer select-none" onClick={() => toggleSort("description")}>
+                    Descrição
+                  </th>
                   <th className="text-left px-3 py-3 font-medium">Categoria</th>
+                  <th className="text-left px-3 py-3 font-medium cursor-pointer select-none" onClick={() => toggleSort("method")}>
+                    Pagamento
+                  </th>
                   <th className="text-right px-4 py-3 font-medium w-32">Valor</th>
-                  <th className="text-center px-4 py-3 font-medium w-32">Data</th>
+                  <th className="text-center px-4 py-3 font-medium w-32 cursor-pointer select-none" onClick={() => toggleSort("date")}>
+                    Data
+                  </th>
                   <th className="text-center px-4 py-3 font-medium w-32">Vencimento</th>
                   <th className="text-center px-4 py-3 font-medium w-24">Status</th>
-                  <th className="px-3 py-3 w-24"></th>
+                  <th className="px-3 py-3 w-12"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {txs.map((t: any) => {
+                {pageRows.map((t: any) => {
                   const cat = cats.find((c: any) => c.id === t.category_id);
                   const isPaid = t.is_paid !== false;
                   const paid = Number(t.paid_amount ?? 0);
                   const original = Number(t.amount ?? 0);
                   const diff = paid && isPaid ? paid - original : 0;
+                  const isInvoicePay = t.payment_method === "invoice";
                   return (
                     <tr key={t.id} className="hover:bg-muted/30">
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3 min-w-0">
                           <span
                             className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
-                            style={{ background: (cat?.color ?? "#94a3b8") + "1a", color: cat?.color ?? "#94a3b8" }}
+                            style={{ background: (cat?.color ?? (isInvoicePay ? "#0ea5e9" : "#94a3b8")) + "1a", color: cat?.color ?? (isInvoicePay ? "#0ea5e9" : "#94a3b8") }}
                           >
-                            <CategoryIcon name={cat?.icon} className="h-3.5 w-3.5" />
+                            {isInvoicePay
+                              ? <Receipt className="h-3.5 w-3.5" />
+                              : <CategoryIcon name={cat?.icon} className="h-3.5 w-3.5" />}
                           </span>
                           <span className="truncate">{t.description ?? cat?.name ?? "Lançamento"}</span>
+                          {isInvoicePay && (
+                            <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">
+                              Fatura
+                            </span>
+                          )}
                           {t.is_installment ? (
                             <span className="text-[10px] uppercase text-muted-foreground">{t.installment_index}/x</span>
                           ) : null}
                         </div>
                       </td>
-                      <td className="px-3 py-3 text-muted-foreground">{cat?.name ?? "—"}</td>
+                      <td className="px-3 py-3 text-muted-foreground">{cat?.name ?? (isInvoicePay ? "Cartão" : "—")}</td>
+                      <td className="px-3 py-3"><MethodBadge method={t.payment_method as PayMethod} /></td>
                       <td className="px-4 py-3 text-right">
                         <span className={`tabular font-medium ${t.kind === "income" ? "text-success" : "text-foreground"}`}>
                           {t.kind === "income" ? "+" : "−"} {fmtMoney(t.amount)}
@@ -180,6 +296,15 @@ function LancamentosTab() {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {sorted.length > pageSize && (
+          <div className="flex items-center justify-between px-5 py-3 border-t border-border text-xs text-muted-foreground">
+            <span>Mostrando {pageRows.length} de {sorted.length}</span>
+            <Button size="sm" variant="ghost" onClick={() => setPageSize((n) => n + 20)}>
+              Carregar mais
+            </Button>
           </div>
         )}
       </Card>
@@ -224,9 +349,6 @@ function PayDialog({ tx, onClose }: { tx: any; onClose: () => void }) {
           <div className="space-y-2">
             <Label>Valor pago (R$)</Label>
             <Input type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} />
-            <p className="text-xs text-muted-foreground">
-              Diferente do original? Informe o valor real (juros/multa/desconto).
-            </p>
             {diff !== 0 && (
               <p className={`text-xs tabular ${diff > 0 ? "text-destructive" : "text-success"}`}>
                 {diff > 0 ? `+ ${fmtMoney(diff)} de juros/multa` : `${fmtMoney(diff)} de desconto`}
@@ -242,23 +364,89 @@ function PayDialog({ tx, onClose }: { tx: any; onClose: () => void }) {
   );
 }
 
-type PayMethod = "checking" | "pix" | "cash" | "card";
-
-function TxForm({ cats, userId, onDone }: { cats: any[]; userId: string; onDone: () => void }) {
+function TxForm({
+  cats, userId, onDone, preselectInvoiceCardId,
+}: {
+  cats: any[]; userId: string; onDone: () => void; preselectInvoiceCardId?: string;
+}) {
   const { data: cards } = useRealtimeQuery("credit_cards", userId);
-  const [kind, setKind] = useState<"income" | "expense">("expense");
+  const { data: allTxs } = useRealtimeQuery("transactions", userId);
+  const [kind, setKind] = useState<"expense" | "income" | "invoice">(
+    preselectInvoiceCardId ? "invoice" : "expense"
+  );
   const [method, setMethod] = useState<PayMethod>("checking");
-  const [cardId, setCardId] = useState<string>("");
+  const [cardId, setCardId] = useState<string>(preselectInvoiceCardId ?? "");
   const [amount, setAmount] = useState("");
+  const [interest, setInterest] = useState("0");
   const [date, setDate] = useState(todayISO());
   const [dueDate, setDueDate] = useState("");
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [busy, setBusy] = useState(false);
-  const filtered = cats.filter((c: any) => c.kind === kind);
+  const filtered = cats.filter((c: any) => c.kind === (kind === "income" ? "income" : "expense"));
+
+  // Invoice context
+  const { start, end } = useMemo(() => monthRange(new Date()), []);
+  const invoiceCard = cards.find((c: any) => c.id === cardId);
+  const invoiceTxs = useMemo(
+    () => allTxs.filter((t: any) => t.card_id === cardId && t.date >= start && t.date <= end),
+    [allTxs, cardId, start, end],
+  );
+  const invoicePending = invoiceTxs
+    .filter((t: any) => t.is_paid === false)
+    .reduce((s: number, t: any) => s + Number(t.amount), 0);
+
+  // Seed amount when switching to invoice flow
+  useEffect(() => {
+    if (kind === "invoice" && cardId && invoicePending > 0) {
+      setAmount(invoicePending.toFixed(2));
+    }
+  }, [kind, cardId, invoicePending]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (kind === "invoice") {
+      if (!cardId || !invoiceCard) { toast.error("Selecione o cartão"); return; }
+      const paid = Number(amount) || 0;
+      const fees = Number(interest) || 0;
+      const cashOut = paid + fees;
+      if (paid <= 0) { toast.error("Informe um valor a pagar"); return; }
+      if (paid > invoicePending + 0.009) { toast.error("Valor maior que a fatura"); return; }
+      setBusy(true);
+      const label = `Pagamento Cartão ${invoiceCard.name}${fees > 0 ? " (+ juros)" : ""}`;
+      const { error: e1 } = await supabase.from("transactions").insert({
+        user_id: userId, kind: "expense", amount: cashOut, date,
+        description: label, is_paid: true, card_id: null,
+        payment_method: "invoice",
+      } as any);
+      if (e1) { setBusy(false); toast.error(e1.message); return; }
+
+      const ids = invoiceTxs.filter((t: any) => t.is_paid === false).map((t: any) => t.id);
+      if (ids.length) {
+        const { error: e2 } = await supabase.from("transactions")
+          .update({ is_paid: true } as any).in("id", ids);
+        if (e2) { setBusy(false); toast.error(e2.message); return; }
+      }
+
+      const remaining = Math.max(invoicePending - paid, 0);
+      if (remaining > 0.009) {
+        const now = new Date();
+        const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const { error: e3 } = await supabase.from("transactions").insert({
+          user_id: userId, kind: "expense", amount: remaining,
+          date: toLocalISODate(next),
+          description: `Saldo devedor fatura — ${invoiceCard.name}`,
+          is_paid: false, card_id: cardId, payment_method: "card",
+        } as any);
+        if (e3) { setBusy(false); toast.error(e3.message); return; }
+      }
+      setBusy(false);
+      toast.success("Fatura paga");
+      onDone();
+      return;
+    }
+
     if (kind === "expense" && method === "card" && !cardId) {
       toast.error("Selecione qual cartão foi usado");
       return;
@@ -266,11 +454,13 @@ function TxForm({ cats, userId, onDone }: { cats: any[]; userId: string; onDone:
     setBusy(true);
     const isCardExpense = kind === "expense" && method === "card";
     const { error } = await supabase.from("transactions").insert({
-      user_id: userId, kind, amount: Number(amount), date,
+      user_id: userId, kind: kind === "income" ? "income" : "expense",
+      amount: Number(amount), date,
       due_date: dueDate || null,
       description: description || null,
       category_id: categoryId || null,
       card_id: isCardExpense ? cardId : null,
+      payment_method: kind === "income" ? "checking" : method,
       is_paid: kind === "expense" && (isCardExpense || dueDate) ? false : true,
     } as any);
     setBusy(false);
@@ -280,93 +470,148 @@ function TxForm({ cats, userId, onDone }: { cats: any[]; userId: string; onDone:
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <Button type="button" variant={kind === "expense" ? "default" : "outline"} onClick={() => setKind("expense")}>Despesa</Button>
         <Button type="button" variant={kind === "income" ? "default" : "outline"} onClick={() => setKind("income")}>Receita</Button>
+        <Button type="button" variant={kind === "invoice" ? "default" : "outline"} onClick={() => setKind("invoice")}>
+          Pagto. Fatura
+        </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Valor (R$)</Label>
-          <Input type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" />
-        </div>
-        <div className="space-y-2">
-          <Label>Data do lançamento</Label>
-          <DatePicker value={date} onChange={setDate} />
-        </div>
-      </div>
-
-      {kind === "expense" && (
+      {kind === "invoice" ? (
         <>
           <div className="space-y-2">
-            <Label>Forma de pagamento</Label>
-            <Select value={method} onValueChange={(v) => setMethod(v as PayMethod)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Label>Cartão</Label>
+            <Select value={cardId} onValueChange={setCardId} required>
+              <SelectTrigger><SelectValue placeholder="Selecione o cartão" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="checking">Conta corrente</SelectItem>
-                <SelectItem value="pix">Pix</SelectItem>
-                <SelectItem value="cash">Dinheiro</SelectItem>
-                <SelectItem value="card">Cartão de crédito</SelectItem>
+                {cards.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-muted-foreground">Cadastre um cartão primeiro.</div>
+                ) : cards.map((c: any) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-3 w-4 rounded-sm" style={{ background: c.color }} />
+                      {c.name}
+                    </span>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <p className="text-[11px] text-muted-foreground">
-              Como você pagou — diferente da <b>categoria</b> abaixo, que descreve o que foi gasto.
-            </p>
+          </div>
+          {cardId && (
+            <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Fatura pendente</span>
+                <span className="tabular font-medium">{fmtMoney(invoicePending)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{invoiceTxs.length} lançamento(s) do mês</span>
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Valor a pagar (R$)</Label>
+              <Input type="number" step="0.01" min="0" required value={amount} onChange={(e) => setAmount(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Juros/multa (opcional)</Label>
+              <Input type="number" step="0.01" min="0" value={interest} onChange={(e) => setInterest(e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Data do pagamento</Label>
+            <DatePicker value={date} onChange={setDate} />
+          </div>
+          <div className="rounded-lg border border-border p-3 text-sm flex justify-between">
+            <span className="text-muted-foreground">Total debitado da conta</span>
+            <span className="tabular font-semibold">{fmtMoney((Number(amount) || 0) + (Number(interest) || 0))}</span>
+          </div>
+          <Button type="submit" className="w-full" disabled={busy}>
+            {busy ? "Salvando..." : "Confirmar pagamento da fatura"}
+          </Button>
+        </>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Valor (R$)</Label>
+              <Input type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" />
+            </div>
+            <div className="space-y-2">
+              <Label>Data do lançamento</Label>
+              <DatePicker value={date} onChange={setDate} />
+            </div>
           </div>
 
-          {method === "card" && (
-            <div className="space-y-2">
-              <Label>Cartão usado</Label>
-              <Select value={cardId} onValueChange={setCardId} required>
-                <SelectTrigger><SelectValue placeholder="Selecione o cartão" /></SelectTrigger>
-                <SelectContent>
-                  {cards.length === 0 ? (
-                    <div className="px-3 py-2 text-xs text-muted-foreground">Cadastre um cartão primeiro.</div>
-                  ) : cards.map((c: any) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      <span className="inline-flex items-center gap-2">
-                        <span className="h-3 w-4 rounded-sm" style={{ background: c.color }} />
-                        {c.name} {c.brand ? `· ${c.brand}` : ""}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">A despesa entra na fatura desse cartão e é quitada quando você pagar a fatura.</p>
-            </div>
+          {kind === "expense" && (
+            <>
+              <div className="space-y-2">
+                <Label>Forma de pagamento</Label>
+                <Select value={method} onValueChange={(v) => setMethod(v as PayMethod)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="checking">Conta corrente</SelectItem>
+                    <SelectItem value="pix">Pix</SelectItem>
+                    <SelectItem value="cash">Dinheiro</SelectItem>
+                    <SelectItem value="card">Cartão de crédito</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {method === "card" && (
+                <div className="space-y-2">
+                  <Label>Cartão usado</Label>
+                  <Select value={cardId} onValueChange={setCardId} required>
+                    <SelectTrigger><SelectValue placeholder="Selecione o cartão" /></SelectTrigger>
+                    <SelectContent>
+                      {cards.length === 0 ? (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">Cadastre um cartão primeiro.</div>
+                      ) : cards.map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          <span className="inline-flex items-center gap-2">
+                            <span className="h-3 w-4 rounded-sm" style={{ background: c.color }} />
+                            {c.name} {c.brand ? `· ${c.brand}` : ""}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {method !== "card" && (
+                <div className="space-y-2">
+                  <Label>Data de vencimento (opcional)</Label>
+                  <DatePicker value={dueDate} onChange={setDueDate} placeholder="Sem vencimento" allowClear />
+                </div>
+              )}
+            </>
           )}
 
-          {method !== "card" && (
-            <div className="space-y-2">
-              <Label>Data de vencimento (opcional)</Label>
-              <DatePicker value={dueDate} onChange={setDueDate} placeholder="Sem vencimento" allowClear />
-              <p className="text-xs text-muted-foreground">Se preencher, a despesa entra como pendente até você confirmar o pagamento.</p>
-            </div>
-          )}
+          <div className="space-y-2">
+            <Label>Categoria do gasto</Label>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger><SelectValue placeholder="Ex: Alimentação, Lazer, Saúde..." /></SelectTrigger>
+              <SelectContent>
+                {filtered.map((c: any) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Descrição (opcional)</Label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Mercado, Uber..." />
+          </div>
+          <Button type="submit" className="w-full" disabled={busy}>{busy ? "Salvando..." : "Salvar"}</Button>
         </>
       )}
-
-      <div className="space-y-2">
-        <Label>Categoria do gasto</Label>
-        <Select value={categoryId} onValueChange={setCategoryId}>
-          <SelectTrigger><SelectValue placeholder="Ex: Alimentação, Lazer, Saúde..." /></SelectTrigger>
-          <SelectContent>
-            {filtered.map((c: any) => (
-              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-2">
-        <Label>Descrição (opcional)</Label>
-        <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Mercado, Uber..." />
-      </div>
-      <Button type="submit" className="w-full" disabled={busy}>{busy ? "Salvando..." : "Salvar"}</Button>
     </form>
   );
 }
 
-/* ============ A receber tab (with partial payments) ============ */
+/* ============ A receber tab ============ */
 
 function ReceberTab() {
   const { user } = useAuth();
@@ -388,148 +633,78 @@ function ReceberTab() {
     <>
       <div className="grid grid-cols-2 gap-4 mb-4">
         <Card className="p-5 shadow-soft">
-          <p className="text-xs text-muted-foreground">Saldo a receber</p>
+          <p className="text-xs text-muted-foreground">A receber</p>
           <p className="text-2xl font-semibold tabular mt-1">{fmtMoney(pending)}</p>
         </Card>
         <Card className="p-5 shadow-soft">
-          <p className="text-xs text-muted-foreground">Já recebido</p>
+          <p className="text-xs text-muted-foreground">Recebido</p>
           <p className="text-2xl font-semibold tabular mt-1 text-success">{fmtMoney(received)}</p>
         </Card>
       </div>
 
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end mb-3">
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" variant="outline"><Plus className="h-4 w-4 mr-1.5" /> Novo a receber</Button>
-          </DialogTrigger>
+          <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1.5" /> Novo</Button></DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Novo a receber</DialogTitle></DialogHeader>
-            <NewReceivableForm userId={user!.id} onDone={() => setOpen(false)} />
+            <ReceberForm userId={user!.id} onDone={() => setOpen(false)} />
           </DialogContent>
         </Dialog>
       </div>
 
-      {enriched.length === 0 ? (
-        <Card className="p-12 text-center shadow-soft">
-          <HandCoins className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
-          <p className="text-sm text-muted-foreground">Nada registrado.</p>
-        </Card>
-      ) : (
-        <Card className="shadow-soft overflow-hidden">
+      <Card className="shadow-soft overflow-hidden">
+        {enriched.length === 0 ? (
+          <div className="p-12 text-center text-sm text-muted-foreground">Sem cobranças.</div>
+        ) : (
           <ul className="divide-y divide-border">
-            {enriched.map((it) => <ReceivableRow key={it.id} item={it} userId={user!.id} />)}
+            {enriched.map((r) => (
+              <li key={r.id} className="px-5 py-3 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{r.debtor_name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Total {fmtMoney(r.amount)} • Recebido {fmtMoney(r.received)} • Saldo {fmtMoney(r.balance)}
+                    {r.due_date && ` • vence ${fmtDate(r.due_date)}`}
+                  </p>
+                </div>
+                <Button size="sm" variant="outline" onClick={async () => {
+                  const value = Number(prompt("Valor recebido (R$):", String(r.balance.toFixed(2))) ?? "0");
+                  if (!Number.isFinite(value) || value <= 0) return;
+                  const { error } = await supabase.from("receivable_payments")
+                    .insert({ receivable_id: r.id, user_id: user!.id, amount: value } as any);
+                  if (error) toast.error(error.message); else toast.success("Pagamento registrado");
+                }}>
+                  Receber
+                </Button>
+                <Button size="sm" variant="ghost" onClick={async () => {
+                  const { error } = await supabase.from("receivables").delete().eq("id", r.id);
+                  if (error) toast.error(error.message); else toast.success("Removido");
+                }}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </li>
+            ))}
           </ul>
-        </Card>
-      )}
+        )}
+      </Card>
     </>
   );
 }
 
-function ReceivableRow({ item, userId }: { item: any; userId: string }) {
-  const [openPay, setOpenPay] = useState(false);
-  const isPaid = item.balance <= 0.009;
-  const pct = item.amount > 0 ? Math.min((item.received / Number(item.amount)) * 100, 100) : 0;
-
-  return (
-    <li className="px-5 py-4">
-      <div className="flex items-center gap-4">
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium">{item.debtor_name}</p>
-          <p className="text-xs text-muted-foreground">
-            {item.due_date ? `Vence ${fmtDate(item.due_date)}` : "Sem prazo"}
-            {item.notes ? ` • ${item.notes}` : ""}
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="tabular font-medium text-sm">{fmtMoney(item.balance)}</p>
-          <p className="text-xs text-muted-foreground tabular">de {fmtMoney(item.amount)}</p>
-        </div>
-        {!isPaid ? (
-          <Dialog open={openPay} onOpenChange={setOpenPay}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">Receber</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Registrar recebimento</DialogTitle></DialogHeader>
-              <PartialPaymentForm receivableId={item.id} userId={userId} maxAmount={item.balance} onDone={() => setOpenPay(false)} />
-            </DialogContent>
-          </Dialog>
-        ) : (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-success/10 text-success flex items-center gap-1">
-            <Check className="h-3 w-3" /> Pago
-          </span>
-        )}
-      </div>
-      <div className="h-1 bg-secondary rounded-full mt-3 overflow-hidden">
-        <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
-      </div>
-      {item.payments.length > 0 && (
-        <ul className="mt-2 space-y-0.5">
-          {item.payments.map((p: any) => (
-            <li key={p.id} className="text-xs text-muted-foreground tabular flex justify-between">
-              <span>↳ {fmtDate(p.paid_at)}{p.notes ? ` • ${p.notes}` : ""}</span>
-              <span className="text-success">+ {fmtMoney(p.amount)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </li>
-  );
-}
-
-function PartialPaymentForm({ receivableId, userId, maxAmount, onDone }: { receivableId: string; userId: string; maxAmount: number; onDone: () => void }) {
-  const [amount, setAmount] = useState(maxAmount.toFixed(2));
-  const [date, setDate] = useState(todayISO());
-  const [notes, setNotes] = useState("");
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const value = Number(amount);
-    if (value <= 0) { toast.error("Valor inválido"); return; }
-    const { error } = await supabase.from("receivable_payments").insert({
-      user_id: userId, receivable_id: receivableId, amount: value, paid_at: date, notes: notes || null,
-    } as any);
-    if (error) { toast.error(error.message); return; }
-    if (value >= maxAmount - 0.009) {
-      await supabase.from("receivables").update({ status: "paid" } as any).eq("id", receivableId);
-    }
-    toast.success("Recebimento registrado");
-    onDone();
-  };
-
-  return (
-    <form onSubmit={submit} className="space-y-3">
-      <div><Label>Valor recebido (R$)</Label><Input type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
-      <p className="text-xs text-muted-foreground">Saldo devedor: {fmtMoney(maxAmount)}</p>
-      <div><Label>Data</Label><DatePicker value={date} onChange={setDate} /></div>
-      <div><Label>Observação (opcional)</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
-      <Button type="submit" className="w-full">Salvar</Button>
-    </form>
-  );
-}
-
-function NewReceivableForm({ userId, onDone }: { userId: string; onDone: () => void }) {
-  const [name, setName] = useState(""); const [amount, setAmount] = useState("");
-  const [due, setDue] = useState(""); const [notes, setNotes] = useState("");
-  void parseLocalDate; // keep import used in some builds
-
+function ReceberForm({ userId, onDone }: { userId: string; onDone: () => void }) {
+  const [debtor, setDebtor] = useState(""); const [amount, setAmount] = useState("");
+  const [due, setDue] = useState("");
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const { error } = await supabase.from("receivables").insert({
-      user_id: userId, debtor_name: name, amount: Number(amount),
-      due_date: due || null, notes: notes || null, status: "pending",
+      user_id: userId, debtor_name: debtor, amount: Number(amount), due_date: due || null,
     } as any);
-    if (error) toast.error(error.message); else { toast.success("Adicionado"); onDone(); }
+    if (error) toast.error(error.message); else { toast.success("Criado"); onDone(); }
   };
-
   return (
     <form onSubmit={submit} className="space-y-3">
-      <div><Label>Quem deve</Label><Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="João" /></div>
-      <div className="grid grid-cols-2 gap-3">
-        <div><Label>Valor (R$)</Label><Input type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
-        <div><Label>Prazo (opcional)</Label><DatePicker value={due} onChange={setDue} placeholder="Sem prazo" allowClear /></div>
-      </div>
-      <div><Label>Observações</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+      <div><Label>Devedor</Label><Input required value={debtor} onChange={(e) => setDebtor(e.target.value)} /></div>
+      <div><Label>Valor (R$)</Label><Input type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
+      <div><Label>Vencimento (opcional)</Label><DatePicker value={due} onChange={setDue} allowClear placeholder="Sem vencimento" /></div>
       <Button type="submit" className="w-full">Salvar</Button>
     </form>
   );

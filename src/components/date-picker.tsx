@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
+import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -17,11 +18,16 @@ type Props = {
   fromDate?: Date;
   toDate?: Date;
   allowClear?: boolean;
+  /** Earliest year for the year dropdown (default: current year - 10) */
+  fromYear?: number;
+  /** Latest year for the year dropdown (default: current year + 5) */
+  toYear?: number;
 };
 
 /**
- * DatePicker that reads/writes ISO strings ("YYYY-MM-DD") in LOCAL time
- * and renders dd/MM/yyyy in pt-BR. Drop-in replacement for `<input type="date">`.
+ * DatePicker (pt-BR / dd-MM-yyyy) with month & year dropdowns inside the
+ * popover so users can jump years/months without spamming the chevrons.
+ * Reads/writes ISO local-date strings ("YYYY-MM-DD").
  */
 export function DatePicker({
   value,
@@ -32,8 +38,14 @@ export function DatePicker({
   fromDate,
   toDate,
   allowClear,
+  fromYear,
+  toYear,
 }: Props) {
   const date = parseLocalDate(value) ?? undefined;
+  const currentYear = new Date().getFullYear();
+  const startYear = fromYear ?? currentYear - 10;
+  const endYear = toYear ?? currentYear + 5;
+  const [month, setMonth] = useState<Date>(date ?? new Date());
 
   return (
     <Popover>
@@ -74,6 +86,11 @@ export function DatePicker({
           mode="single"
           locale={ptBR}
           selected={date}
+          month={month}
+          onMonthChange={setMonth}
+          captionLayout="dropdown"
+          fromYear={startYear}
+          toYear={endYear}
           onSelect={(d) => {
             if (d) onChange(toLocalISODate(d));
           }}

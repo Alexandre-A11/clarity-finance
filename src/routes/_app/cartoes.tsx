@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { useRealtimeQuery } from "@/lib/data-hooks";
 import { fmtMoney, installmentDates, todayISO, fmtDate, parseLocalDate, monthRange, toLocalISODate } from "@/lib/finance";
@@ -104,6 +104,8 @@ function CartoesPage() {
 }
 
 function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; userId: string; hidden: boolean }) {
+  void userId;
+  const nav = useNavigate();
   // Invoice = current month transactions tied to this card
   const { start, end } = useMemo(() => monthRange(new Date()), []);
   const invoiceTxs = useMemo(
@@ -116,8 +118,6 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
   // Total used = all open transactions on the card (utilization)
   const used = txs.filter((t: any) => t.card_id === c.id).reduce((s, t: any) => s + Number(t.amount), 0);
   const pct = c.limit_total > 0 ? (used / Number(c.limit_total)) * 100 : 0;
-
-  const [paying, setPaying] = useState(false);
 
   const removeCard = async () => {
     const { error } = await supabase.from("credit_cards").delete().eq("id", c.id);
@@ -188,21 +188,15 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
               {" "}pendente {fmtMoney(invoicePending)}
             </p>
           </div>
-          <Button size="sm" disabled={invoicePending <= 0} onClick={() => setPaying(true)}>
+          <Button
+            size="sm"
+            disabled={invoicePending <= 0}
+            onClick={() => nav({ to: "/transacoes", search: { action: "pay-invoice", cardId: c.id } })}
+          >
             Pagar fatura
           </Button>
         </div>
       </div>
-
-      {paying && (
-        <PayInvoiceDialog
-          card={c}
-          invoiceTxs={invoiceTxs}
-          invoicePending={invoicePending}
-          userId={userId}
-          onClose={() => setPaying(false)}
-        />
-      )}
     </Card>
   );
 }

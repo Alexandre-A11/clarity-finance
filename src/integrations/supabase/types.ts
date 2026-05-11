@@ -478,6 +478,7 @@ export type Database = {
           is_paid: boolean
           kind: Database["public"]["Enums"]["tx_kind"]
           paid_amount: number | null
+          payment_method: Database["public"]["Enums"]["payment_method"]
           user_id: string
         }
         Insert: {
@@ -496,6 +497,7 @@ export type Database = {
           is_paid?: boolean
           kind: Database["public"]["Enums"]["tx_kind"]
           paid_amount?: number | null
+          payment_method?: Database["public"]["Enums"]["payment_method"]
           user_id: string
         }
         Update: {
@@ -514,6 +516,7 @@ export type Database = {
           is_paid?: boolean
           kind?: Database["public"]["Enums"]["tx_kind"]
           paid_amount?: number | null
+          payment_method?: Database["public"]["Enums"]["payment_method"]
           user_id?: string
         }
         Relationships: [
@@ -581,6 +584,7 @@ export type Database = {
       asset_kind: "stock" | "fii"
       dividend_type: "dividend" | "jcp" | "rendimento"
       ongoing_kind: "subscription" | "installment"
+      payment_method: "checking" | "pix" | "cash" | "card" | "invoice"
       receivable_status: "pending" | "paid" | "overdue"
       tx_kind: "income" | "expense"
     }
@@ -715,6 +719,7 @@ export const Constants = {
       asset_kind: ["stock", "fii"],
       dividend_type: ["dividend", "jcp", "rendimento"],
       ongoing_kind: ["subscription", "installment"],
+      payment_method: ["checking", "pix", "cash", "card", "invoice"],
       receivable_status: ["pending", "paid", "overdue"],
       tx_kind: ["income", "expense"],
     },
