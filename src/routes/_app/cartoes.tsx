@@ -188,21 +188,15 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
               {" "}pendente {fmtMoney(invoicePending)}
             </p>
           </div>
-          <Button size="sm" disabled={invoicePending <= 0} onClick={() => setPaying(true)}>
+          <Button
+            size="sm"
+            disabled={invoicePending <= 0}
+            onClick={() => nav({ to: "/transacoes", search: { action: "pay-invoice", cardId: c.id } })}
+          >
             Pagar fatura
           </Button>
         </div>
       </div>
-
-      {paying && (
-        <PayInvoiceDialog
-          card={c}
-          invoiceTxs={invoiceTxs}
-          invoicePending={invoicePending}
-          userId={userId}
-          onClose={() => setPaying(false)}
-        />
-      )}
     </Card>
   );
 }
