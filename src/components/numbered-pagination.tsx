@@ -1,7 +1,8 @@
 import {
   Pagination, PaginationContent, PaginationItem, PaginationLink,
-  PaginationPrevious, PaginationNext, PaginationEllipsis,
+  PaginationEllipsis,
 } from "@/components/ui/pagination";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type Props = {
   page: number;
@@ -15,29 +16,30 @@ export function NumberedPagination({ page, pageCount, onPageChange }: Props) {
 
   const go = (p: number) => onPageChange(Math.max(1, Math.min(pageCount, p)));
 
-  // Build a windowed list of pages: always show first, last, current ±1, ellipsis.
-  const pages: (number | "…")[] = [];
-  const push = (v: number | "…") => {
-    if (pages[pages.length - 1] !== v) pages.push(v);
-  };
-  for (let i = 1; i <= pageCount; i++) {
-    if (i === 1 || i === pageCount || (i >= page - 1 && i <= page + 1)) push(i);
-    else if (i < page - 1) push("…");
-    else if (i > page + 1) { push("…"); i = pageCount - 1; }
-  }
+  // Windowed page list: first, last, current ±1, with ellipsis.
+  const set = new Set<number>([1, pageCount, page, page - 1, page + 1]);
+  const visible = Array.from(set).filter((n) => n >= 1 && n <= pageCount).sort((a, b) => a - b);
+  const items: (number | "…")[] = [];
+  visible.forEach((n, i) => {
+    if (i > 0 && n - visible[i - 1] > 1) items.push("…");
+    items.push(n);
+  });
 
   return (
     <Pagination>
       <PaginationContent>
         <PaginationItem>
-          <PaginationPrevious
+          <PaginationLink
+            size="default"
             onClick={(e) => { e.preventDefault(); go(page - 1); }}
-            className={page === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+            className={`gap-1 pl-2.5 cursor-pointer ${page === 1 ? "pointer-events-none opacity-50" : ""}`}
+            aria-label="Página anterior"
           >
+            <ChevronLeft className="h-4 w-4" />
             <span className="hidden sm:inline">Anterior</span>
-          </PaginationPrevious>
+          </PaginationLink>
         </PaginationItem>
-        {pages.map((p, idx) =>
+        {items.map((p, idx) =>
           p === "…" ? (
             <PaginationItem key={`e${idx}`}><PaginationEllipsis /></PaginationItem>
           ) : (
@@ -53,12 +55,15 @@ export function NumberedPagination({ page, pageCount, onPageChange }: Props) {
           ),
         )}
         <PaginationItem>
-          <PaginationNext
+          <PaginationLink
+            size="default"
             onClick={(e) => { e.preventDefault(); go(page + 1); }}
-            className={page === pageCount ? "pointer-events-none opacity-50" : "cursor-pointer"}
+            className={`gap-1 pr-2.5 cursor-pointer ${page === pageCount ? "pointer-events-none opacity-50" : ""}`}
+            aria-label="Próxima página"
           >
             <span className="hidden sm:inline">Próxima</span>
-          </PaginationNext>
+            <ChevronRight className="h-4 w-4" />
+          </PaginationLink>
         </PaginationItem>
       </PaginationContent>
     </Pagination>
