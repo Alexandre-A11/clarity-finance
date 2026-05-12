@@ -1,26 +1,25 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { useRealtimeQuery } from "@/lib/data-hooks";
-import { fmtMoney, installmentDates, todayISO, fmtDate, parseLocalDate, monthRange, toLocalISODate } from "@/lib/finance";
+import { fmtMoney, fmtDate, monthRange, parseLocalDate, toLocalISODate } from "@/lib/finance";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, CreditCard as CardIcon, Lock, Trash2, Receipt } from "lucide-react";
+import { Plus, CreditCard as CardIcon, Lock, Trash2, Receipt, FastForward } from "lucide-react";
 import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { BrandSelect } from "@/components/brand-select";
 import { ColorSwatchPicker } from "@/components/color-swatch-picker";
 import { CreditCardVisual } from "@/components/credit-card-visual";
-import { DatePicker } from "@/components/date-picker";
 import { usePrivacy } from "@/lib/privacy-context";
 
 export const Route = createFileRoute("/_app/cartoes")({
@@ -32,7 +31,6 @@ function CartoesPage() {
   const { data: cards } = useRealtimeQuery("credit_cards", user?.id);
   const { data: txs } = useRealtimeQuery("transactions", user?.id);
   const { data: installments } = useRealtimeQuery("installment_purchases", user?.id);
-  const { data: cats } = useRealtimeQuery("categories", user?.id);
   const { hidden } = usePrivacy();
 
   return (
@@ -40,12 +38,11 @@ function CartoesPage() {
       <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Cartões de crédito</h1>
-          <p className="text-muted-foreground text-sm mt-1">Limite, fatura e parcelas</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            Limite, fatura e parcelas. Lance gastos e pague faturas em <span className="font-medium text-foreground">Transações → Nova</span>.
+          </p>
         </div>
-        <div className="flex gap-2 items-center">
-          <NewCardDialog userId={user!.id} />
-          {cards.length > 0 && <NewInstallmentDialog cards={cards} cats={cats} userId={user!.id} />}
-        </div>
+        <NewCardDialog userId={user!.id} />
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
@@ -73,15 +70,13 @@ function CartoesPage() {
                 }).length;
                 const remaining = p.installments_total - paid;
                 const monthly = Number(p.total_amount) / p.installments_total;
-                const dates = installmentDates(p.first_date, p.installments_total);
-                const last = dates[dates.length - 1];
                 return (
                   <li key={p.id} className="px-5 py-4">
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <p className="text-sm font-medium">{p.description}</p>
                         <p className="text-xs text-muted-foreground">
-                          {card?.name ?? "Cartão removido"} • {fmtMoney(monthly)}/mês • Última: {fmtDate(last)}
+                          {card?.name ?? "Cartão removido"} • {fmtMoney(monthly)}/mês
                         </p>
                       </div>
                       <div className="text-right">
@@ -105,8 +100,6 @@ function CartoesPage() {
 
 function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; userId: string; hidden: boolean }) {
   void userId;
-  const nav = useNavigate();
-  // Invoice = current month transactions tied to this card
   const { start, end } = useMemo(() => monthRange(new Date()), []);
   const invoiceTxs = useMemo(
     () => txs.filter((t: any) => t.card_id === c.id && t.date >= start && t.date <= end),
@@ -115,15 +108,24 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
   const invoiceTotal = invoiceTxs.reduce((s, t: any) => s + Number(t.amount), 0);
   const invoicePending = invoiceTxs.filter((t: any) => t.is_paid === false).reduce((s, t: any) => s + Number(t.amount), 0);
 
-  // Total used = all open transactions on the card (utilization)
+  // Future installments still pending after this month → eligible to anticipate
+  const futureInstallments = useMemo(
+    () => txs.filter((t: any) =>
+      t.card_id === c.id && t.is_installment && t.is_paid === false && (t.date ?? "") > end
+    ).sort((a: any, b: any) => (a.date ?? "").localeCompare(b.date ?? "")),
+    [txs, c.id, end]
+  );
+
   const used = txs.filter((t: any) => t.card_id === c.id).reduce((s, t: any) => s + Number(t.amount), 0);
   const pct = c.limit_total > 0 ? (used / Number(c.limit_total)) * 100 : 0;
 
   const removeCard = async () => {
     const { error } = await supabase.from("credit_cards").delete().eq("id", c.id);
-    if (error) toast.error(error.message);
-    else toast.success("Cartão removido");
+    if (error) toast.error(error.message); else toast.success("Cartão removido");
   };
+
+  const [showInvoice, setShowInvoice] = useState(false);
+  const [showAnticipate, setShowAnticipate] = useState(false);
 
   return (
     <Card className="p-4 shadow-soft">
@@ -156,8 +158,7 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
             <AlertDialogHeader>
               <AlertDialogTitle>Excluir cartão {c.name}?</AlertDialogTitle>
               <AlertDialogDescription>
-                As transações antigas serão preservadas (apenas o vínculo com o cartão será removido).
-                Compras parceladas neste cartão e suas parcelas futuras serão excluídas.
+                As transações antigas serão preservadas. Compras parceladas neste cartão e suas parcelas futuras serão excluídas.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -175,7 +176,6 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
       </div>
       <p className="text-xs text-muted-foreground mt-3">Fecha dia {c.closing_day} • vence dia {c.due_day}</p>
 
-      {/* Invoice block */}
       <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -184,140 +184,153 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
             </p>
             <p className="text-lg font-semibold tabular mt-0.5">{fmtMoney(invoiceTotal)}</p>
             <p className="text-xs text-muted-foreground tabular">
-              {invoiceTxs.length} lançamento{invoiceTxs.length !== 1 ? "s" : ""} ·
-              {" "}pendente {fmtMoney(invoicePending)}
+              {invoiceTxs.length} lançamento{invoiceTxs.length !== 1 ? "s" : ""} · pendente {fmtMoney(invoicePending)}
             </p>
           </div>
-          <Button
-            size="sm"
-            disabled={invoicePending <= 0}
-            onClick={() => nav({ to: "/transacoes", search: { action: "pay-invoice", cardId: c.id } })}
-          >
-            Pagar fatura
+          <Button size="sm" variant="outline" onClick={() => setShowInvoice(true)}>
+            Ver fatura
           </Button>
         </div>
+        {futureInstallments.length > 0 && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="w-full mt-2 justify-center gap-1.5"
+            onClick={() => setShowAnticipate(true)}
+          >
+            <FastForward className="h-3.5 w-3.5" />
+            Antecipar parcelas ({futureInstallments.length})
+          </Button>
+        )}
       </div>
+
+      <InvoiceDetailsDialog
+        open={showInvoice}
+        onOpenChange={setShowInvoice}
+        card={c}
+        invoiceTxs={invoiceTxs}
+        invoiceTotal={invoiceTotal}
+        invoicePending={invoicePending}
+      />
+
+      <AnticipateDialog
+        open={showAnticipate}
+        onOpenChange={setShowAnticipate}
+        card={c}
+        items={futureInstallments}
+      />
     </Card>
   );
 }
 
-function PayInvoiceDialog({
-  card,
-  invoiceTxs,
-  invoicePending,
-  userId,
-  onClose,
+function InvoiceDetailsDialog({
+  open, onOpenChange, card, invoiceTxs, invoiceTotal, invoicePending,
 }: {
-  card: any;
-  invoiceTxs: any[];
-  invoicePending: number;
-  userId: string;
-  onClose: () => void;
+  open: boolean; onOpenChange: (v: boolean) => void;
+  card: any; invoiceTxs: any[]; invoiceTotal: number; invoicePending: number;
 }) {
-  const [amount, setAmount] = useState(invoicePending.toFixed(2));
-  const [interest, setInterest] = useState("0");
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Fatura — {card.name}</DialogTitle></DialogHeader>
+        <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1">
+          <div className="flex justify-between"><span className="text-muted-foreground">Total da fatura</span><span className="tabular font-medium">{fmtMoney(invoiceTotal)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Pendente</span><span className="tabular font-medium">{fmtMoney(invoicePending)}</span></div>
+        </div>
+        {invoiceTxs.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">Nenhum lançamento neste mês.</p>
+        ) : (
+          <ul className="divide-y divide-border text-sm">
+            {invoiceTxs.map((t: any) => (
+              <li key={t.id} className="py-2 flex justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate">{t.description ?? "Lançamento"}</p>
+                  <p className="text-[11px] text-muted-foreground">{fmtDate(t.date)}{t.is_installment ? ` · parcela ${t.installment_index}` : ""}</p>
+                </div>
+                <span className="tabular font-medium shrink-0">{fmtMoney(t.amount)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-[11px] text-muted-foreground border-t border-border pt-3">
+          Para pagar a fatura vá em <b>Transações → Nova</b>, selecione <b>Cartão</b> e depois <b>Pagar fatura</b>.
+        </p>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AnticipateDialog({
+  open, onOpenChange, card, items,
+}: {
+  open: boolean; onOpenChange: (v: boolean) => void;
+  card: any; items: any[];
+}) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
 
-  const paid = Number(amount) || 0;
-  const fees = Number(interest) || 0;
-  const cashOut = paid + fees;
-  const remaining = Math.max(invoicePending - paid, 0);
-  const isPartial = remaining > 0.009;
+  const toggle = (id: string) => {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (paid <= 0) { toast.error("Informe um valor a pagar."); return; }
-    if (paid > invoicePending + 0.009) { toast.error("Valor maior que a fatura."); return; }
+  const totalSelected = items
+    .filter((t) => selected.has(t.id))
+    .reduce((s, t) => s + Number(t.amount), 0);
+
+  const confirm = async () => {
+    if (selected.size === 0) { toast.error("Selecione ao menos uma parcela"); return; }
     setBusy(true);
-
-    // 1) Cash outflow (single consolidated expense)
-    const today = todayISO();
-    const label = `Pagamento fatura — ${card.name}${fees > 0 ? " (+ juros/multa)" : ""}`;
-    const { error: e1 } = await supabase.from("transactions").insert({
-      user_id: userId,
-      kind: "expense",
-      amount: cashOut,
-      date: today,
-      description: label,
-      is_paid: true,
-      card_id: null,
-    } as any);
-    if (e1) { setBusy(false); toast.error(e1.message); return; }
-
-    // 2) Mark all current pending invoice txs as paid
-    const ids = invoiceTxs.filter((t: any) => t.is_paid === false).map((t: any) => t.id);
-    if (ids.length) {
-      const { error: e2 } = await supabase
-        .from("transactions")
-        .update({ is_paid: true } as any)
-        .in("id", ids);
-      if (e2) { setBusy(false); toast.error(e2.message); return; }
-    }
-
-    // 3) Roll-over remaining balance into next month's invoice
-    if (isPartial) {
-      const now = new Date();
-      const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      const { error: e3 } = await supabase.from("transactions").insert({
-        user_id: userId,
-        kind: "expense",
-        amount: remaining,
-        date: toLocalISODate(next),
-        description: `Saldo devedor fatura anterior — ${card.name}`,
-        is_paid: false,
-        card_id: card.id,
-      } as any);
-      if (e3) { setBusy(false); toast.error(e3.message); return; }
-    }
-
+    const today = toLocalISODate(new Date());
+    const { error } = await supabase
+      .from("transactions")
+      .update({ date: today } as any)
+      .in("id", Array.from(selected));
     setBusy(false);
-    onClose();
-    toast.success(isPartial ? "Pagamento parcial registrado" : "Fatura paga");
+    if (error) { toast.error(error.message); return; }
+    toast.success(`${selected.size} parcela(s) antecipada(s) para a fatura atual`);
+    setSelected(new Set());
+    onOpenChange(false);
   };
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Pagar fatura — {card.name}</DialogTitle></DialogHeader>
-        <form onSubmit={submit} className="space-y-4">
-          <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Valor da fatura</span>
-              <span className="tabular font-medium">{fmtMoney(invoicePending)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{invoiceTxs.length} lançamento(s) do mês</span>
-              <span className="tabular text-muted-foreground">total {fmtMoney(invoiceTxs.reduce((s, t: any) => s + Number(t.amount), 0))}</span>
-            </div>
-          </div>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) setSelected(new Set()); onOpenChange(o); }}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Antecipar parcelas — {card.name}</DialogTitle></DialogHeader>
+        <p className="text-xs text-muted-foreground">
+          Selecione as parcelas futuras que deseja trazer para a fatura atual. Elas passarão a vencer hoje.
+        </p>
 
-          <div className="space-y-2">
-            <Label>Valor a pagar (R$)</Label>
-            <Input type="number" step="0.01" min="0" required value={amount} onChange={(e) => setAmount(e.target.value)} />
-            <p className="text-[11px] text-muted-foreground">
-              Pague o total ou um valor parcial — o restante migra automaticamente para a próxima fatura.
-            </p>
-            {isPartial && (
-              <p className="text-xs text-warning tabular">
-                Saldo devedor de {fmtMoney(remaining)} ficará na fatura do próximo mês.
-              </p>
-            )}
-          </div>
+        {items.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">Sem parcelas futuras pendentes.</p>
+        ) : (
+          <ul className="divide-y divide-border max-h-[55vh] overflow-y-auto -mx-1">
+            {items.map((t: any) => (
+              <li key={t.id} className="px-1 py-2 flex items-center gap-3">
+                <Checkbox checked={selected.has(t.id)} onCheckedChange={() => toggle(t.id)} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm truncate">{t.description ?? "Parcela"}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Vence em {fmtDate(t.date)}{t.installment_index ? ` · ${t.installment_index}ª parcela` : ""}
+                  </p>
+                </div>
+                <span className="text-sm tabular font-medium">{fmtMoney(t.amount)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
 
-          <div className="space-y-2">
-            <Label>Juros / multa por atraso (opcional)</Label>
-            <Input type="number" step="0.01" min="0" value={interest} onChange={(e) => setInterest(e.target.value)} />
-          </div>
+        <div className="rounded-lg border border-border p-3 flex justify-between text-sm">
+          <span className="text-muted-foreground">{selected.size} selecionada(s)</span>
+          <span className="tabular font-semibold">{fmtMoney(totalSelected)}</span>
+        </div>
 
-          <div className="rounded-lg border border-border p-3 text-sm flex justify-between">
-            <span className="text-muted-foreground">Total debitado da conta</span>
-            <span className="tabular font-semibold">{fmtMoney(cashOut)}</span>
-          </div>
-
-          <Button type="submit" className="w-full" disabled={busy || cashOut <= 0}>
-            {busy ? "Salvando..." : "Confirmar pagamento"}
-          </Button>
-        </form>
+        <Button onClick={confirm} disabled={busy || selected.size === 0} className="w-full">
+          {busy ? "Antecipando..." : "Trazer para a fatura atual"}
+        </Button>
       </DialogContent>
     </Dialog>
   );
@@ -343,7 +356,7 @@ function NewCardDialog({ userId }: { userId: string }) {
   };
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button variant="outline"><Plus className="h-4 w-4 mr-1.5" /> Cartão</Button></DialogTrigger>
+      <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1.5" /> Cartão</Button></DialogTrigger>
       <DialogContent>
         <DialogHeader><DialogTitle>Novo cartão</DialogTitle></DialogHeader>
         <form onSubmit={submit} className="space-y-3">
@@ -375,88 +388,6 @@ function NewCardDialog({ userId }: { userId: string }) {
             <Lock className="h-3 w-3" /> Por segurança, não armazenamos número completo nem CVV.
           </p>
           <Button type="submit" className="w-full">Salvar</Button>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function NewInstallmentDialog({ cards, cats, userId }: { cards: any[]; cats: any[]; userId: string }) {
-  const [open, setOpen] = useState(false);
-  const [cardId, setCardId] = useState(cards[0]?.id ?? ""); const [desc, setDesc] = useState("");
-  const [total, setTotal] = useState(""); const [n, setN] = useState("12");
-  const [first, setFirst] = useState(todayISO());
-  const [catId, setCatId] = useState("");
-  const expenseCats = useMemo(() => cats.filter((c) => c.kind === "expense"), [cats]);
-  const selectedCard = cards.find((c) => c.id === cardId);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!cardId) { toast.error("Selecione um cartão"); return; }
-    const { data: purchase, error } = await supabase.from("installment_purchases").insert({
-      user_id: userId, card_id: cardId, description: desc, total_amount: Number(total),
-      installments_total: Number(n), first_date: first, category_id: catId || null,
-    } as any).select().single();
-    if (error || !purchase) { toast.error(error?.message ?? "Erro"); return; }
-    const dates = installmentDates(first, Number(n));
-    const monthly = Number(total) / Number(n);
-    const rows = dates.map((d, i) => ({
-      user_id: userId, card_id: cardId, category_id: catId || null,
-      date: d, amount: monthly, kind: "expense" as const, description: `${desc} (${i + 1}/${n})`,
-      is_installment: true, installment_purchase_id: (purchase as any).id, installment_index: i + 1,
-    }));
-    const { error: e2 } = await supabase.from("transactions").insert(rows as any);
-    if (e2) toast.error(e2.message); else { toast.success(`${n} parcelas geradas`); setOpen(false); }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1.5" /> Compra parcelada</Button></DialogTrigger>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Compra parcelada</DialogTitle></DialogHeader>
-        <form onSubmit={submit} className="space-y-3">
-          <div className="rounded-lg bg-primary-soft/40 border border-border p-3 flex items-start gap-2 text-xs">
-            <Lock className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
-            <p className="text-muted-foreground">
-              <span className="text-foreground font-medium">Fonte de pagamento:</span> o cartão selecionado abaixo é debitado a cada parcela. A <span className="text-foreground font-medium">categoria</span> serve apenas para classificar o que foi comprado.
-            </p>
-          </div>
-          <div>
-            <Label>Cartão (fonte de pagamento)</Label>
-            <Select value={cardId} onValueChange={setCardId} required>
-              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>
-                {cards.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    <span className="inline-flex items-center gap-2">
-                      <span className="h-3 w-4 rounded-sm" style={{ background: c.color }} />
-                      {c.name} {c.brand ? `· ${c.brand}` : ""}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedCard && (
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Vence dia {selectedCard.due_day} · fecha dia {selectedCard.closing_day}
-              </p>
-            )}
-          </div>
-          <div><Label>Descrição</Label><Input required value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Notebook" /></div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><Label>Total (R$)</Label><Input type="number" step="0.01" required value={total} onChange={(e) => setTotal(e.target.value)} /></div>
-            <div><Label>Nº parcelas</Label><Input type="number" min="1" max="60" required value={n} onChange={(e) => setN(e.target.value)} /></div>
-          </div>
-          <div><Label>Data 1ª parcela</Label><DatePicker value={first} onChange={setFirst} /></div>
-          <div>
-            <Label>Categoria do gasto (classificação)</Label>
-            <Select value={catId} onValueChange={setCatId}>
-              <SelectTrigger><SelectValue placeholder="Ex: Eletrônicos, Saúde..." /></SelectTrigger>
-              <SelectContent>{expenseCats.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          {total && n && <p className="text-xs text-muted-foreground">{n}× de {fmtMoney(Number(total) / Number(n))}</p>}
-          <Button type="submit" className="w-full">Gerar parcelas</Button>
         </form>
       </DialogContent>
     </Dialog>
