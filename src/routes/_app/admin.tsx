@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useRole } from "@/lib/use-role";
-import { deleteUserCompletely, listAdminUsers, updateUserRole } from "@/server/admin.functions";
+import { deleteUserCompletely, listAdminUsers, updateUserRole } from "@/lib/admin.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {

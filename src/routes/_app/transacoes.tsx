@@ -1,7 +1,7 @@
 import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { useRealtimeQuery } from "@/lib/data-hooks";
-import { fmtMoney, fmtDate, todayISO, monthRange, toLocalISODate } from "@/lib/finance";
+import { fmtMoney, fmtDate, todayISO, monthRange, toLocalISODate, installmentDates } from "@/lib/finance";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  Plus, Trash2, Check, ArrowUpDown,
+  Plus, Trash2, ArrowUpDown,
   Landmark, Smartphone, Banknote, CreditCard as CardLucide, Receipt,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { CategoryIcon } from "@/components/icon-picker";
 import { CategoryManagerTrigger } from "@/components/category-manager";
 import { DatePicker } from "@/components/date-picker";
+import { NumberedPagination } from "@/components/numbered-pagination";
 import { usePrivacy } from "@/lib/privacy-context";
 
 type TxSearch = {
@@ -35,6 +36,7 @@ export const Route = createFileRoute("/_app/transacoes")({
 });
 
 type PayMethod = "checking" | "pix" | "cash" | "card" | "invoice";
+const PAGE_SIZE = 15;
 
 const METHOD_META: Record<PayMethod, { label: string; Icon: React.ElementType; color: string }> = {
   checking: { label: "Conta corrente", Icon: Landmark, color: "var(--primary)" },
@@ -60,7 +62,6 @@ function MethodBadge({ method }: { method?: PayMethod | null }) {
 }
 
 function TransacoesPage() {
-  // Privacy: subscribe so fmtMoney re-renders globally on this page when toggled.
   usePrivacy();
   const search = useSearch({ from: "/_app/transacoes" });
 
@@ -69,7 +70,7 @@ function TransacoesPage() {
       <div className="mb-6 flex items-end justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Transações</h1>
-          <p className="text-muted-foreground text-sm mt-1">Receitas, despesas e valores a receber</p>
+          <p className="text-muted-foreground text-sm mt-1">Fluxo de caixa — entradas e saídas efetivadas</p>
         </div>
         <CategoryManagerTrigger />
       </div>
@@ -102,24 +103,20 @@ function LancamentosTab({ initialAction, initialCardId }: { initialAction?: stri
   );
   const { data: cats } = useRealtimeQuery("categories", user?.id);
   const [open, setOpen] = useState(false);
-  const [paying, setPaying] = useState<any | null>(null);
   const [showFuture, setShowFuture] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [pageSize, setPageSize] = useState(20);
+  const [page, setPage] = useState(1);
 
-  // Auto-open form if we arrived from "Pagar fatura" on /cartoes
   useEffect(() => {
     if (initialAction === "pay-invoice") {
       setOpen(true);
-      // clear search params after opening
       nav({ to: "/transacoes", search: {}, replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialAction]);
 
-  // Cash-flow view = exclude pending card purchases (those belong to the invoice).
-  // Invoice-payment txs themselves stay in the list (they are the actual cash out).
+  // Cash-flow view: exclude card purchases (they belong to the invoice).
   const cashFlowTxs = useMemo(
     () => allTxs.filter((t: any) => !t.card_id),
     [allTxs],
@@ -132,9 +129,8 @@ function LancamentosTab({ initialAction, initialCardId }: { initialAction?: stri
     const arr = [...visibleTxs];
     arr.sort((a: any, b: any) => {
       let cmp = 0;
-      if (sortKey === "date") {
-        cmp = (a.date ?? "").localeCompare(b.date ?? "");
-      } else if (sortKey === "description") {
+      if (sortKey === "date") cmp = (a.date ?? "").localeCompare(b.date ?? "");
+      else if (sortKey === "description") {
         const an = (a.description ?? cats.find((c: any) => c.id === a.category_id)?.name ?? "").toString();
         const bn = (b.description ?? cats.find((c: any) => c.id === b.category_id)?.name ?? "").toString();
         cmp = an.localeCompare(bn, "pt-BR", { sensitivity: "base" });
@@ -146,7 +142,11 @@ function LancamentosTab({ initialAction, initialCardId }: { initialAction?: stri
     return arr;
   }, [visibleTxs, sortKey, sortDir, cats]);
 
-  const pageRows = sorted.slice(0, pageSize);
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageRows = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  useEffect(() => { setPage(1); }, [sortKey, sortDir, showFuture]);
 
   const toggleSort = (key: SortKey) => {
     if (key === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -210,32 +210,27 @@ function LancamentosTab({ initialAction, initialCardId }: { initialAction?: stri
             <table className="w-full text-sm">
               <thead className="text-xs text-muted-foreground bg-muted/40">
                 <tr>
+                  <th className="text-center px-4 py-3 font-medium w-32 cursor-pointer select-none" onClick={() => toggleSort("date")}>
+                    Data
+                  </th>
                   <th className="text-left px-5 py-3 font-medium cursor-pointer select-none" onClick={() => toggleSort("description")}>
                     Descrição
                   </th>
                   <th className="text-left px-3 py-3 font-medium">Categoria</th>
                   <th className="text-left px-3 py-3 font-medium cursor-pointer select-none" onClick={() => toggleSort("method")}>
-                    Pagamento
+                    Meio
                   </th>
                   <th className="text-right px-4 py-3 font-medium w-32">Valor</th>
-                  <th className="text-center px-4 py-3 font-medium w-32 cursor-pointer select-none" onClick={() => toggleSort("date")}>
-                    Data
-                  </th>
-                  <th className="text-center px-4 py-3 font-medium w-32">Vencimento</th>
-                  <th className="text-center px-4 py-3 font-medium w-24">Status</th>
                   <th className="px-3 py-3 w-12"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {pageRows.map((t: any) => {
                   const cat = cats.find((c: any) => c.id === t.category_id);
-                  const isPaid = t.is_paid !== false;
-                  const paid = Number(t.paid_amount ?? 0);
-                  const original = Number(t.amount ?? 0);
-                  const diff = paid && isPaid ? paid - original : 0;
                   const isInvoicePay = t.payment_method === "invoice";
                   return (
                     <tr key={t.id} className="hover:bg-muted/30">
+                      <td className="px-4 py-3 text-center tabular text-muted-foreground">{fmtDate(t.date)}</td>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3 min-w-0">
                           <span
@@ -252,9 +247,6 @@ function LancamentosTab({ initialAction, initialCardId }: { initialAction?: stri
                               Fatura
                             </span>
                           )}
-                          {t.is_installment ? (
-                            <span className="text-[10px] uppercase text-muted-foreground">{t.installment_index}/x</span>
-                          ) : null}
                         </div>
                       </td>
                       <td className="px-3 py-3 text-muted-foreground">{cat?.name ?? (isInvoicePay ? "Cartão" : "—")}</td>
@@ -263,28 +255,6 @@ function LancamentosTab({ initialAction, initialCardId }: { initialAction?: stri
                         <span className={`tabular font-medium ${t.kind === "income" ? "text-success" : "text-foreground"}`}>
                           {t.kind === "income" ? "+" : "−"} {fmtMoney(t.amount)}
                         </span>
-                        {diff !== 0 && (
-                          <p className={`text-[10px] tabular ${diff > 0 ? "text-destructive" : "text-success"}`}>
-                            pago {fmtMoney(paid)}{diff > 0 ? ` (+${fmtMoney(diff)})` : ` (${fmtMoney(diff)})`}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-center tabular text-muted-foreground">{fmtDate(t.date)}</td>
-                      <td className="px-4 py-3 text-center tabular text-muted-foreground">{fmtDate(t.due_date)}</td>
-                      <td className="px-4 py-3 text-center">
-                        {t.kind === "expense" && t.due_date ? (
-                          isPaid ? (
-                            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-success/10 text-success">
-                              <Check className="h-3 w-3" /> Pago
-                            </span>
-                          ) : (
-                            <Button size="sm" variant="outline" className="h-7" onClick={() => setPaying(t)}>
-                              <Check className="h-3 w-3 mr-1" /> Pagar
-                            </Button>
-                          )
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
                       </td>
                       <td className="px-3 py-3 text-right">
                         <Button variant="ghost" size="sm" onClick={() => remove(t.id)}>
@@ -299,70 +269,20 @@ function LancamentosTab({ initialAction, initialCardId }: { initialAction?: stri
           </div>
         )}
 
-        {sorted.length > pageSize && (
-          <div className="flex items-center justify-between px-5 py-3 border-t border-border text-xs text-muted-foreground">
-            <span>Mostrando {pageRows.length} de {sorted.length}</span>
-            <Button size="sm" variant="ghost" onClick={() => setPageSize((n) => n + 20)}>
-              Carregar mais
-            </Button>
+        {pageCount > 1 && (
+          <div className="flex items-center justify-between px-5 py-3 border-t border-border text-xs text-muted-foreground gap-3 flex-wrap">
+            <span>Página {safePage} de {pageCount} · {sorted.length} lançamento(s)</span>
+            <NumberedPagination page={safePage} pageCount={pageCount} onPageChange={setPage} />
           </div>
         )}
       </Card>
-
-      {paying && (
-        <PayDialog tx={paying} onClose={() => setPaying(null)} />
-      )}
     </>
   );
 }
 
-function PayDialog({ tx, onClose }: { tx: any; onClose: () => void }) {
-  const [amount, setAmount] = useState(String(Number(tx.amount).toFixed(2)));
-  const [busy, setBusy] = useState(false);
+/* ============ Form ============ */
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    const value = Number(amount);
-    if (!Number.isFinite(value) || value <= 0) { setBusy(false); return toast.error("Valor inválido"); }
-    const { error } = await supabase.from("transactions")
-      .update({ is_paid: true, paid_amount: value } as any)
-      .eq("id", tx.id);
-    setBusy(false);
-    if (error) toast.error(error.message);
-    else { toast.success("Pagamento registrado"); onClose(); }
-  };
-
-  const original = Number(tx.amount);
-  const value = Number(amount) || 0;
-  const diff = value - original;
-
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Confirmar pagamento</DialogTitle></DialogHeader>
-        <form onSubmit={submit} className="space-y-4">
-          <div className="rounded-lg bg-muted/40 p-3 text-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">Valor original</span><span className="tabular font-medium">{fmtMoney(original)}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Vence em</span><span className="tabular">{fmtDate(tx.due_date)}</span></div>
-          </div>
-          <div className="space-y-2">
-            <Label>Valor pago (R$)</Label>
-            <Input type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} />
-            {diff !== 0 && (
-              <p className={`text-xs tabular ${diff > 0 ? "text-destructive" : "text-success"}`}>
-                {diff > 0 ? `+ ${fmtMoney(diff)} de juros/multa` : `${fmtMoney(diff)} de desconto`}
-              </p>
-            )}
-          </div>
-          <Button type="submit" className="w-full" disabled={busy}>
-            {busy ? "Salvando..." : "Confirmar pagamento"}
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
+type CardAction = "expense" | "invoice";
 
 function TxForm({
   cats, userId, onDone, preselectInvoiceCardId,
@@ -371,19 +291,21 @@ function TxForm({
 }) {
   const { data: cards } = useRealtimeQuery("credit_cards", userId);
   const { data: allTxs } = useRealtimeQuery("transactions", userId);
-  const [kind, setKind] = useState<"expense" | "income" | "invoice">(
-    preselectInvoiceCardId ? "invoice" : "expense"
-  );
-  const [method, setMethod] = useState<PayMethod>("checking");
+  const [kind, setKind] = useState<"expense" | "income">("expense");
+  const [method, setMethod] = useState<PayMethod>(preselectInvoiceCardId ? "card" : "checking");
+  const [cardAction, setCardAction] = useState<CardAction>(preselectInvoiceCardId ? "invoice" : "expense");
   const [cardId, setCardId] = useState<string>(preselectInvoiceCardId ?? "");
   const [amount, setAmount] = useState("");
   const [interest, setInterest] = useState("0");
+  const [installments, setInstallments] = useState("1");
   const [date, setDate] = useState(todayISO());
-  const [dueDate, setDueDate] = useState("");
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const filtered = cats.filter((c: any) => c.kind === (kind === "income" ? "income" : "expense"));
+
+  const isCardFlow = kind === "expense" && method === "card";
+  const isInvoicePay = isCardFlow && cardAction === "invoice";
 
   // Invoice context
   const { start, end } = useMemo(() => monthRange(new Date()), []);
@@ -396,17 +318,17 @@ function TxForm({
     .filter((t: any) => t.is_paid === false)
     .reduce((s: number, t: any) => s + Number(t.amount), 0);
 
-  // Seed amount when switching to invoice flow
   useEffect(() => {
-    if (kind === "invoice" && cardId && invoicePending > 0) {
+    if (isInvoicePay && cardId && invoicePending > 0) {
       setAmount(invoicePending.toFixed(2));
     }
-  }, [kind, cardId, invoicePending]);
+  }, [isInvoicePay, cardId, invoicePending]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (kind === "invoice") {
+    // --- INVOICE PAYMENT ---
+    if (isInvoicePay) {
       if (!cardId || !invoiceCard) { toast.error("Selecione o cartão"); return; }
       const paid = Number(amount) || 0;
       const fees = Number(interest) || 0;
@@ -447,21 +369,62 @@ function TxForm({
       return;
     }
 
-    if (kind === "expense" && method === "card" && !cardId) {
-      toast.error("Selecione qual cartão foi usado");
+    // --- CARD PURCHASE (single or installments) ---
+    if (isCardFlow && cardAction === "expense") {
+      if (!cardId) { toast.error("Selecione qual cartão foi usado"); return; }
+      const total = Number(amount);
+      const n = Math.max(1, Math.min(60, parseInt(installments || "1", 10) || 1));
+      if (!Number.isFinite(total) || total <= 0) { toast.error("Valor inválido"); return; }
+      setBusy(true);
+
+      if (n === 1) {
+        const { error } = await supabase.from("transactions").insert({
+          user_id: userId, kind: "expense", amount: total, date,
+          description: description || null,
+          category_id: categoryId || null,
+          card_id: cardId, payment_method: "card",
+          is_paid: false,
+        } as any);
+        setBusy(false);
+        if (error) toast.error(error.message);
+        else { toast.success("Lançado na fatura"); onDone(); }
+        return;
+      }
+
+      // Installments: create installment_purchase + n transactions
+      const monthly = total / n;
+      const { data: purchase, error: pe } = await supabase.from("installment_purchases").insert({
+        user_id: userId, card_id: cardId, description: description || "Compra parcelada",
+        total_amount: total, installments_total: n, first_date: date,
+        category_id: categoryId || null,
+      } as any).select().single();
+      if (pe || !purchase) { setBusy(false); toast.error(pe?.message ?? "Erro"); return; }
+      const dates = installmentDates(date, n);
+      const rows = dates.map((d, i) => ({
+        user_id: userId, card_id: cardId, category_id: categoryId || null,
+        date: d, amount: monthly, kind: "expense" as const,
+        description: `${description || "Compra"} (${i + 1}/${n})`,
+        is_installment: true, installment_purchase_id: (purchase as any).id,
+        installment_index: i + 1, payment_method: "card",
+        is_paid: false,
+      }));
+      const { error: te } = await supabase.from("transactions").insert(rows as any);
+      setBusy(false);
+      if (te) toast.error(te.message);
+      else { toast.success(`${n} parcelas geradas`); onDone(); }
       return;
     }
+
+    // --- REGULAR CASH-FLOW EXPENSE / INCOME ---
     setBusy(true);
-    const isCardExpense = kind === "expense" && method === "card";
     const { error } = await supabase.from("transactions").insert({
       user_id: userId, kind: kind === "income" ? "income" : "expense",
       amount: Number(amount), date,
-      due_date: dueDate || null,
       description: description || null,
       category_id: categoryId || null,
-      card_id: isCardExpense ? cardId : null,
+      card_id: null,
       payment_method: kind === "income" ? "checking" : method,
-      is_paid: kind === "expense" && (isCardExpense || dueDate) ? false : true,
+      is_paid: true,
     } as any);
     setBusy(false);
     if (error) toast.error(error.message);
@@ -470,16 +433,44 @@ function TxForm({
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <Button type="button" variant={kind === "expense" ? "default" : "outline"} onClick={() => setKind("expense")}>Despesa</Button>
         <Button type="button" variant={kind === "income" ? "default" : "outline"} onClick={() => setKind("income")}>Receita</Button>
-        <Button type="button" variant={kind === "invoice" ? "default" : "outline"} onClick={() => setKind("invoice")}>
-          Pagto. Fatura
-        </Button>
       </div>
 
-      {kind === "invoice" ? (
+      {kind === "expense" && (
+        <div className="space-y-2">
+          <Label>Forma de pagamento</Label>
+          <Select value={method} onValueChange={(v) => setMethod(v as PayMethod)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="checking">Conta corrente</SelectItem>
+              <SelectItem value="pix">Pix</SelectItem>
+              <SelectItem value="cash">Dinheiro</SelectItem>
+              <SelectItem value="card">Cartão de crédito</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {isCardFlow && (
         <>
+          <div className="space-y-2">
+            <Label>O que deseja fazer com o cartão?</Label>
+            <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-muted">
+              <Button type="button" size="sm"
+                variant={cardAction === "expense" ? "default" : "ghost"}
+                onClick={() => setCardAction("expense")}>
+                <CardLucide className="h-3.5 w-3.5 mr-1.5" /> Registrar gasto
+              </Button>
+              <Button type="button" size="sm"
+                variant={cardAction === "invoice" ? "default" : "ghost"}
+                onClick={() => setCardAction("invoice")}>
+                <Receipt className="h-3.5 w-3.5 mr-1.5" /> Pagar fatura
+              </Button>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label>Cartão</Label>
             <Select value={cardId} onValueChange={setCardId} required>
@@ -491,13 +482,18 @@ function TxForm({
                   <SelectItem key={c.id} value={c.id}>
                     <span className="inline-flex items-center gap-2">
                       <span className="h-3 w-4 rounded-sm" style={{ background: c.color }} />
-                      {c.name}
+                      {c.name} {c.brand ? `· ${c.brand}` : ""}
                     </span>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+        </>
+      )}
+
+      {isInvoicePay ? (
+        <>
           {cardId && (
             <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1">
               <div className="flex justify-between">
@@ -539,58 +535,28 @@ function TxForm({
               <Input type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" />
             </div>
             <div className="space-y-2">
-              <Label>Data do lançamento</Label>
+              <Label>Data {isCardFlow ? "da compra" : "do lançamento"}</Label>
               <DatePicker value={date} onChange={setDate} />
             </div>
           </div>
 
-          {kind === "expense" && (
-            <>
-              <div className="space-y-2">
-                <Label>Forma de pagamento</Label>
-                <Select value={method} onValueChange={(v) => setMethod(v as PayMethod)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="checking">Conta corrente</SelectItem>
-                    <SelectItem value="pix">Pix</SelectItem>
-                    <SelectItem value="cash">Dinheiro</SelectItem>
-                    <SelectItem value="card">Cartão de crédito</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {method === "card" && (
-                <div className="space-y-2">
-                  <Label>Cartão usado</Label>
-                  <Select value={cardId} onValueChange={setCardId} required>
-                    <SelectTrigger><SelectValue placeholder="Selecione o cartão" /></SelectTrigger>
-                    <SelectContent>
-                      {cards.length === 0 ? (
-                        <div className="px-3 py-2 text-xs text-muted-foreground">Cadastre um cartão primeiro.</div>
-                      ) : cards.map((c: any) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          <span className="inline-flex items-center gap-2">
-                            <span className="h-3 w-4 rounded-sm" style={{ background: c.color }} />
-                            {c.name} {c.brand ? `· ${c.brand}` : ""}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+          {isCardFlow && cardAction === "expense" && (
+            <div className="space-y-2">
+              <Label>Parcelas</Label>
+              <Input
+                type="number" min="1" max="60" value={installments}
+                onChange={(e) => setInstallments(e.target.value)}
+              />
+              {Number(installments) > 1 && Number(amount) > 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  {installments}× de {fmtMoney(Number(amount) / Number(installments))}
+                </p>
               )}
-
-              {method !== "card" && (
-                <div className="space-y-2">
-                  <Label>Data de vencimento (opcional)</Label>
-                  <DatePicker value={dueDate} onChange={setDueDate} placeholder="Sem vencimento" allowClear />
-                </div>
-              )}
-            </>
+            </div>
           )}
 
           <div className="space-y-2">
-            <Label>Categoria do gasto</Label>
+            <Label>Categoria</Label>
             <Select value={categoryId} onValueChange={setCategoryId}>
               <SelectTrigger><SelectValue placeholder="Ex: Alimentação, Lazer, Saúde..." /></SelectTrigger>
               <SelectContent>
@@ -604,7 +570,9 @@ function TxForm({
             <Label>Descrição (opcional)</Label>
             <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Mercado, Uber..." />
           </div>
-          <Button type="submit" className="w-full" disabled={busy}>{busy ? "Salvando..." : "Salvar"}</Button>
+          <Button type="submit" className="w-full" disabled={busy}>
+            {busy ? "Salvando..." : isCardFlow ? "Lançar na fatura" : "Salvar"}
+          </Button>
         </>
       )}
     </form>
