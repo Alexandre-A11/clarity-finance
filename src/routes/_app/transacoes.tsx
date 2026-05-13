@@ -346,7 +346,7 @@ function TxForm({
       } as any);
       if (e1) { setBusy(false); toast.error(e1.message); return; }
 
-      const ids = invoiceTxs.filter((t: any) => t.is_paid === false).map((t: any) => t.id);
+      const ids = invoicePendingTxs.map((t: any) => t.id);
       if (ids.length) {
         const { error: e2 } = await supabase.from("transactions")
           .update({ is_paid: true } as any).in("id", ids);
