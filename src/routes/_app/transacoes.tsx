@@ -642,7 +642,96 @@ function TxForm({
   );
 }
 
-/* ============ A receber tab ============ */
+/* ============ Anticipate sub-dialog (used inside invoice payment) ============ */
+
+function AnticipateInlineDialog({
+  open, onOpenChange, items, selected, onChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  items: any[];
+  selected: Set<string>;
+  onChange: (s: Set<string>) => void;
+}) {
+  const [draft, setDraft] = useState<Set<string>>(selected);
+
+  useEffect(() => { if (open) setDraft(new Set(selected)); }, [open, selected]);
+
+  const toggle = (id: string) => {
+    const n = new Set(draft);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    setDraft(n);
+  };
+  const selectAll = () => setDraft(new Set(items.map((t: any) => t.id)));
+  const clear = () => setDraft(new Set());
+
+  const total = items
+    .filter((t: any) => draft.has(t.id))
+    .reduce((s: number, t: any) => s + Number(t.amount), 0);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Antecipar parcelas futuras</DialogTitle>
+        </DialogHeader>
+        <p className="text-xs text-muted-foreground">
+          Selecione as parcelas que deseja liquidar junto com a fatura atual.
+          Elas serão marcadas como pagas e somadas ao valor desta transação.
+        </p>
+
+        {items.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">
+            Sem parcelas futuras pendentes.
+          </p>
+        ) : (
+          <>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-muted-foreground">{items.length} parcela(s) disponíveis</span>
+              <div className="flex gap-1">
+                <Button type="button" size="sm" variant="ghost" onClick={selectAll}>Todas</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={clear}>Limpar</Button>
+              </div>
+            </div>
+            <ul className="divide-y divide-border max-h-[45vh] overflow-y-auto -mx-1">
+              {items.map((t: any) => (
+                <li key={t.id} className="px-1 py-2 flex items-center gap-3">
+                  <Checkbox checked={draft.has(t.id)} onCheckedChange={() => toggle(t.id)} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm truncate">{t.description ?? "Parcela"}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Vence em {fmtDate(t.date)}
+                      {t.installment_index ? ` · ${t.installment_index}ª parcela` : ""}
+                    </p>
+                  </div>
+                  <span className="text-sm tabular font-medium">{fmtMoney(t.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        <div className="rounded-lg border border-border p-3 text-sm flex justify-between">
+          <span className="text-muted-foreground">{draft.size} selecionada(s)</span>
+          <span className="tabular font-semibold">{fmtMoney(total)}</span>
+        </div>
+
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button
+            type="button" className="flex-1"
+            onClick={() => { onChange(draft); onOpenChange(false); }}
+          >
+            Aplicar à fatura
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function ReceberTab() {
   const { user } = useAuth();
