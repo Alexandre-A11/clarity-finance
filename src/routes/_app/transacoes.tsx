@@ -307,15 +307,17 @@ function TxForm({
   const isCardFlow = kind === "expense" && method === "card";
   const isInvoicePay = isCardFlow && cardAction === "invoice";
 
-  // Invoice context
-  const { start, end } = useMemo(() => monthRange(new Date()), []);
+  // Invoice context — pending invoice = ALL unpaid card txs up to end of current month
+  // (includes overdue from previous months too).
+  const { end } = useMemo(() => monthRange(new Date()), []);
   const invoiceCard = cards.find((c: any) => c.id === cardId);
-  const invoiceTxs = useMemo(
-    () => allTxs.filter((t: any) => t.card_id === cardId && t.date >= start && t.date <= end),
-    [allTxs, cardId, start, end],
+  const invoicePendingTxs = useMemo(
+    () => allTxs.filter((t: any) =>
+      t.card_id === cardId && t.is_paid === false && (t.date ?? "") <= end,
+    ),
+    [allTxs, cardId, end],
   );
-  const invoicePending = invoiceTxs
-    .filter((t: any) => t.is_paid === false)
+  const invoicePending = invoicePendingTxs
     .reduce((s: number, t: any) => s + Number(t.amount), 0);
 
   useEffect(() => {
@@ -344,7 +346,7 @@ function TxForm({
       } as any);
       if (e1) { setBusy(false); toast.error(e1.message); return; }
 
-      const ids = invoiceTxs.filter((t: any) => t.is_paid === false).map((t: any) => t.id);
+      const ids = invoicePendingTxs.map((t: any) => t.id);
       if (ids.length) {
         const { error: e2 } = await supabase.from("transactions")
           .update({ is_paid: true } as any).in("id", ids);
@@ -501,7 +503,7 @@ function TxForm({
                 <span className="tabular font-medium">{fmtMoney(invoicePending)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">{invoiceTxs.length} lançamento(s) do mês</span>
+                <span className="text-muted-foreground">{invoicePendingTxs.length} lançamento(s) pendente(s)</span>
               </div>
             </div>
           )}
