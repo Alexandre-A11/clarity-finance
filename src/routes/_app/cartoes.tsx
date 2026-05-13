@@ -291,6 +291,7 @@ function AnticipateDialog({
   card: any; items: any[];
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [discount, setDiscount] = useState("0");
   const [busy, setBusy] = useState(false);
 
   const toggle = (id: string) => {
@@ -301,37 +302,61 @@ function AnticipateDialog({
     });
   };
 
-  const totalSelected = items
-    .filter((t) => selected.has(t.id))
-    .reduce((s, t) => s + Number(t.amount), 0);
+  const selectedItems = items.filter((t) => selected.has(t.id));
+  const totalSelected = selectedItems.reduce((s, t) => s + Number(t.amount), 0);
+  const discountValue = Math.max(0, Number(discount) || 0);
+  const finalTotal = Math.max(totalSelected - discountValue, 0);
 
   const confirm = async () => {
     if (selected.size === 0) { toast.error("Selecione ao menos uma parcela"); return; }
+    if (discountValue > totalSelected) { toast.error("Desconto maior que o total selecionado"); return; }
     setBusy(true);
     const today = toLocalISODate(new Date());
-    const { error } = await supabase
-      .from("transactions")
-      .update({ date: today } as any)
-      .in("id", Array.from(selected));
+
+    // Distribute discount proportionally; last installment absorbs rounding remainder.
+    const ratio = totalSelected > 0 ? finalTotal / totalSelected : 1;
+    let runningSum = 0;
+    const updates = selectedItems.map((t, idx) => {
+      let newAmount: number;
+      if (idx === selectedItems.length - 1) {
+        newAmount = Math.max(finalTotal - runningSum, 0);
+      } else {
+        newAmount = Math.round(Number(t.amount) * ratio * 100) / 100;
+        runningSum += newAmount;
+      }
+      return { id: t.id, amount: newAmount };
+    });
+
+    for (const u of updates) {
+      const { error } = await supabase
+        .from("transactions")
+        .update({ date: today, amount: u.amount } as any)
+        .eq("id", u.id);
+      if (error) { setBusy(false); toast.error(error.message); return; }
+    }
+
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success(`${selected.size} parcela(s) antecipada(s) para a fatura atual`);
+    toast.success(
+      "Parcelas antecipadas com sucesso! Elas foram adicionadas à fatura deste mês e prontas para pagamento.",
+    );
     setSelected(new Set());
+    setDiscount("0");
     onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) setSelected(new Set()); onOpenChange(o); }}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) { setSelected(new Set()); setDiscount("0"); } onOpenChange(o); }}>
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Antecipar parcelas — {card.name}</DialogTitle></DialogHeader>
         <p className="text-xs text-muted-foreground">
-          Selecione as parcelas futuras que deseja trazer para a fatura atual. Elas passarão a vencer hoje.
+          A antecipação <b>move</b> as parcelas escolhidas do futuro para a fatura atual — ela <b>não</b> as paga.
+          Para quitar, vá em <b>Transações → Nova → Pagar fatura</b>.
         </p>
 
         {items.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-6">Sem parcelas futuras pendentes.</p>
         ) : (
-          <ul className="divide-y divide-border max-h-[55vh] overflow-y-auto -mx-1">
+          <ul className="divide-y divide-border max-h-[45vh] overflow-y-auto -mx-1">
             {items.map((t: any) => (
               <li key={t.id} className="px-1 py-2 flex items-center gap-3">
                 <Checkbox checked={selected.has(t.id)} onCheckedChange={() => toggle(t.id)} />
@@ -347,9 +372,23 @@ function AnticipateDialog({
           </ul>
         )}
 
-        <div className="rounded-lg border border-border p-3 flex justify-between text-sm">
-          <span className="text-muted-foreground">{selected.size} selecionada(s)</span>
-          <span className="tabular font-semibold">{fmtMoney(totalSelected)}</span>
+        <div className="space-y-1.5">
+          <Label htmlFor="anticipate-discount" className="text-xs">Desconto de antecipação (R$)</Label>
+          <Input
+            id="anticipate-discount"
+            type="number" step="0.01" min="0"
+            value={discount}
+            onChange={(e) => setDiscount(e.target.value)}
+            placeholder="0,00"
+          />
+        </div>
+
+        <div className="rounded-lg border border-border p-3 text-sm space-y-1">
+          <div className="flex justify-between"><span className="text-muted-foreground">{selected.size} selecionada(s)</span><span className="tabular">{fmtMoney(totalSelected)}</span></div>
+          {discountValue > 0 && (
+            <div className="flex justify-between text-emerald-700"><span>Desconto</span><span className="tabular">− {fmtMoney(discountValue)}</span></div>
+          )}
+          <div className="flex justify-between font-semibold pt-1 border-t border-border"><span>Total na fatura</span><span className="tabular">{fmtMoney(finalTotal)}</span></div>
         </div>
 
         <Button onClick={confirm} disabled={busy || selected.size === 0} className="w-full">
