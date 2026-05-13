@@ -522,18 +522,48 @@ function TxForm({
           {cardId && (
             <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Fatura pendente</span>
+                <span className="text-muted-foreground">Fatura pendente ({invoicePendingTxs.length})</span>
                 <span className="tabular font-medium">{fmtMoney(invoicePending)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">{invoicePendingTxs.length} lançamento(s) pendente(s)</span>
+              {anticipatedTxs.length > 0 && (
+                <div className="flex justify-between text-sky-700">
+                  <span>+ {anticipatedTxs.length} parcela(s) antecipada(s)</span>
+                  <span className="tabular font-medium">{fmtMoney(anticipatedTotal)}</span>
+                </div>
+              )}
+              <div className="flex justify-between border-t border-border/60 pt-1 mt-1">
+                <span className="text-muted-foreground">Total da fatura</span>
+                <span className="tabular font-semibold">{fmtMoney(originalTotal)}</span>
               </div>
             </div>
           )}
+
+          {cardId && (
+            <Button
+              type="button" variant="outline" size="sm"
+              className="w-full justify-center gap-1.5"
+              onClick={() => setAnticipateOpen(true)}
+              disabled={futureInstallments.length === 0}
+            >
+              <FastForward className="h-3.5 w-3.5" />
+              {futureInstallments.length === 0
+                ? "Sem parcelas futuras para antecipar"
+                : `Antecipar parcelas de meses futuros (${futureInstallments.length} disponíveis)`}
+            </Button>
+          )}
+
+          <AnticipateInlineDialog
+            open={anticipateOpen}
+            onOpenChange={setAnticipateOpen}
+            items={futureInstallments}
+            selected={anticipated}
+            onChange={setAnticipated}
+          />
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Valor a pagar (R$)</Label>
-              <Input type="number" step="0.01" min="0" required value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <Label>Desconto por antecipação (R$)</Label>
+              <Input type="number" step="0.01" min="0" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="0,00" />
             </div>
             <div className="space-y-2">
               <Label>Juros/multa (opcional)</Label>
@@ -544,11 +574,19 @@ function TxForm({
             <Label>Data do pagamento</Label>
             <DatePicker value={date} onChange={setDate} />
           </div>
-          <div className="rounded-lg border border-border p-3 text-sm flex justify-between">
-            <span className="text-muted-foreground">Total debitado da conta</span>
-            <span className="tabular font-semibold">{fmtMoney((Number(amount) || 0) + (Number(interest) || 0))}</span>
+          <div className="rounded-lg border border-border p-3 text-sm space-y-1">
+            <div className="flex justify-between"><span className="text-muted-foreground">Subtotal fatura</span><span className="tabular">{fmtMoney(originalTotal)}</span></div>
+            {discountValue > 0 && (
+              <div className="flex justify-between text-emerald-700"><span>Desconto</span><span className="tabular">− {fmtMoney(discountValue)}</span></div>
+            )}
+            {interestValue > 0 && (
+              <div className="flex justify-between text-amber-700"><span>Juros/multa</span><span className="tabular">+ {fmtMoney(interestValue)}</span></div>
+            )}
+            <div className="flex justify-between border-t border-border pt-1 font-semibold">
+              <span>Total debitado da conta</span><span className="tabular">{fmtMoney(cashOut)}</span>
+            </div>
           </div>
-          <Button type="submit" className="w-full" disabled={busy}>
+          <Button type="submit" className="w-full" disabled={busy || originalTotal <= 0}>
             {busy ? "Salvando..." : "Confirmar pagamento da fatura"}
           </Button>
         </>
