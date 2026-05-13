@@ -110,14 +110,6 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
   const invoicePending = invoiceTxs.filter((t: any) => t.is_paid === false).reduce((s, t: any) => s + Number(t.amount), 0);
   const invoiceFullyPaid = invoiceTxs.length > 0 && invoicePending < 0.01;
 
-  // Future installments still pending after this month → eligible to anticipate
-  const futureInstallments = useMemo(
-    () => txs.filter((t: any) =>
-      t.card_id === c.id && t.is_installment && t.is_paid === false && (t.date ?? "") > end
-    ).sort((a: any, b: any) => (a.date ?? "").localeCompare(b.date ?? "")),
-    [txs, c.id, end]
-  );
-
   // REACTIVE LIMIT: used = sum of UNPAID transactions only.
   // Paying the invoice flips is_paid → true, freeing the limit automatically.
   const used = txs
@@ -132,7 +124,6 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
   };
 
   const [showInvoice, setShowInvoice] = useState(false);
-  const [showAnticipate, setShowAnticipate] = useState(false);
 
   return (
     <Card className="p-4 shadow-soft">
