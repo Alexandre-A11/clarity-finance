@@ -106,7 +106,9 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
     [txs, c.id, start, end]
   );
   const invoiceTotal = invoiceTxs.reduce((s, t: any) => s + Number(t.amount), 0);
+  const invoicePaidSum = invoiceTxs.filter((t: any) => t.is_paid === true).reduce((s, t: any) => s + Number(t.amount), 0);
   const invoicePending = invoiceTxs.filter((t: any) => t.is_paid === false).reduce((s, t: any) => s + Number(t.amount), 0);
+  const invoiceFullyPaid = invoiceTxs.length > 0 && invoicePending < 0.01;
 
   // Future installments still pending after this month → eligible to anticipate
   const futureInstallments = useMemo(
@@ -116,8 +118,13 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
     [txs, c.id, end]
   );
 
-  const used = txs.filter((t: any) => t.card_id === c.id).reduce((s, t: any) => s + Number(t.amount), 0);
+  // REACTIVE LIMIT: used = sum of UNPAID transactions only.
+  // Paying the invoice flips is_paid → true, freeing the limit automatically.
+  const used = txs
+    .filter((t: any) => t.card_id === c.id && t.is_paid === false)
+    .reduce((s, t: any) => s + Number(t.amount), 0);
   const pct = c.limit_total > 0 ? (used / Number(c.limit_total)) * 100 : 0;
+  const available = Math.max(Number(c.limit_total) - used, 0);
 
   const removeCard = async () => {
     const { error } = await supabase.from("credit_cards").delete().eq("id", c.id);
@@ -145,7 +152,7 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
           <p className="text-xs text-muted-foreground">Utilizado</p>
           <p className="text-2xl font-semibold tabular">{fmtMoney(used)}</p>
           <p className="text-xs text-muted-foreground tabular">
-            de {fmtMoney(c.limit_total)} • {pct.toFixed(0)}%
+            disponível {fmtMoney(available)} de {fmtMoney(c.limit_total)} • {pct.toFixed(0)}%
           </p>
         </div>
         <AlertDialog>
@@ -176,16 +183,33 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
       </div>
       <p className="text-xs text-muted-foreground mt-3">Fecha dia {c.closing_day} • vence dia {c.due_day}</p>
 
-      <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
+      <div
+        className={`mt-4 rounded-lg border p-3 ${
+          invoiceFullyPaid
+            ? "border-emerald-200 bg-emerald-50/60"
+            : "border-border bg-muted/30"
+        }`}
+      >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-              <Receipt className="h-3 w-3" /> Fatura do mês
+            <p className={`text-[11px] uppercase tracking-wider flex items-center gap-1 ${invoiceFullyPaid ? "text-emerald-700" : "text-muted-foreground"}`}>
+              <Receipt className="h-3 w-3" /> {invoiceFullyPaid ? "Fatura paga" : "Fatura do mês"}
             </p>
-            <p className="text-lg font-semibold tabular mt-0.5">{fmtMoney(invoiceTotal)}</p>
-            <p className="text-xs text-muted-foreground tabular">
-              {invoiceTxs.length} lançamento{invoiceTxs.length !== 1 ? "s" : ""} · pendente {fmtMoney(invoicePending)}
-            </p>
+            {invoiceFullyPaid ? (
+              <>
+                <p className="text-lg font-semibold tabular mt-0.5 text-emerald-700">{fmtMoney(0)}</p>
+                <p className="text-xs text-emerald-700/80 tabular">
+                  {invoiceTxs.length} lançamento(s) · pago {fmtMoney(invoicePaidSum)}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-semibold tabular mt-0.5">{fmtMoney(invoiceTotal)}</p>
+                <p className="text-xs text-muted-foreground tabular">
+                  {invoiceTxs.length} lançamento{invoiceTxs.length !== 1 ? "s" : ""} · pendente {fmtMoney(invoicePending)}
+                </p>
+              </>
+            )}
           </div>
           <Button size="sm" variant="outline" onClick={() => setShowInvoice(true)}>
             Ver fatura
