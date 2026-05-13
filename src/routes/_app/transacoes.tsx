@@ -297,6 +297,7 @@ function TxForm({
   const [cardAction, setCardAction] = useState<CardAction>(preselectInvoiceCardId ? "invoice" : "expense");
   const [cardId, setCardId] = useState<string>(preselectInvoiceCardId ?? "");
   const [amount, setAmount] = useState("");
+  const [discount, setDiscount] = useState("0");
   const [interest, setInterest] = useState("0");
   const [installments, setInstallments] = useState("1");
   const [date, setDate] = useState(todayISO());
