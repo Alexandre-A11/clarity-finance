@@ -321,53 +321,74 @@ function TxForm({
   const invoicePending = invoicePendingTxs
     .reduce((s: number, t: any) => s + Number(t.amount), 0);
 
-  useEffect(() => {
-    if (isInvoicePay && cardId && invoicePending > 0) {
-      setAmount(invoicePending.toFixed(2));
-    }
-  }, [isInvoicePay, cardId, invoicePending]);
+  // Future installments (after current month) — eligible for anticipation.
+  const futureInstallments = useMemo(
+    () => allTxs.filter((t: any) =>
+      t.card_id === cardId && t.is_paid === false && (t.date ?? "") > end,
+    ).sort((a: any, b: any) => (a.date ?? "").localeCompare(b.date ?? "")),
+    [allTxs, cardId, end],
+  );
+
+  const [anticipateOpen, setAnticipateOpen] = useState(false);
+  const [anticipated, setAnticipated] = useState<Set<string>>(new Set());
+  const anticipatedTxs = futureInstallments.filter((t: any) => anticipated.has(t.id));
+  const anticipatedTotal = anticipatedTxs.reduce((s: number, t: any) => s + Number(t.amount), 0);
+
+  // Reset selections when card changes
+  useEffect(() => { setAnticipated(new Set()); }, [cardId]);
+
+  const originalTotal = invoicePending + anticipatedTotal;
+  const discountValue = Math.max(0, Number(amount) || 0); // reuse `amount` field as discount
+  const interestValue = Math.max(0, Number(interest) || 0);
+  const cashOut = Math.max(originalTotal - discountValue + interestValue, 0);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // --- INVOICE PAYMENT ---
+    // --- INVOICE PAYMENT (with optional anticipation) ---
     if (isInvoicePay) {
       if (!cardId || !invoiceCard) { toast.error("Selecione o cartão"); return; }
-      const paid = Number(amount) || 0;
-      const fees = Number(interest) || 0;
-      const cashOut = paid + fees;
-      if (paid <= 0) { toast.error("Informe um valor a pagar"); return; }
-      if (paid > invoicePending + 0.009) { toast.error("Valor maior que a fatura"); return; }
+      if (originalTotal <= 0) { toast.error("Nada a pagar nesta fatura"); return; }
+      if (discountValue > originalTotal) { toast.error("Desconto maior que a fatura"); return; }
       setBusy(true);
-      const label = `Pagamento Cartão ${invoiceCard.name}${fees > 0 ? " (+ juros)" : ""}`;
+
+      const fees = interestValue;
+      const partsLabel = [
+        `Pagamento Cartão ${invoiceCard.name}`,
+        anticipatedTxs.length > 0 ? `+ ${anticipatedTxs.length} antecipada(s)` : null,
+        fees > 0 ? "(+ juros)" : null,
+        discountValue > 0 ? `(− ${discountValue.toFixed(2)} desc.)` : null,
+      ].filter(Boolean).join(" ");
       const { error: e1 } = await supabase.from("transactions").insert({
         user_id: userId, kind: "expense", amount: cashOut, date,
-        description: label, is_paid: true, card_id: null,
+        description: partsLabel, is_paid: true, card_id: null,
         payment_method: "invoice",
       } as any);
       if (e1) { setBusy(false); toast.error(e1.message); return; }
 
-      const ids = invoicePendingTxs.map((t: any) => t.id);
-      if (ids.length) {
+      // Bulk update: ALL included transactions → is_paid=true.
+      // Per Regra de Ouro: keep original `amount` intact for accurate purchase history.
+      // Anticipated items also have date moved to today so they show in current cash-flow window.
+      const pendingIds = invoicePendingTxs.map((t: any) => t.id);
+      if (pendingIds.length) {
         const { error: e2 } = await supabase.from("transactions")
-          .update({ is_paid: true } as any).in("id", ids);
+          .update({ is_paid: true } as any).in("id", pendingIds);
         if (e2) { setBusy(false); toast.error(e2.message); return; }
       }
-
-      const remaining = Math.max(invoicePending - paid, 0);
-      if (remaining > 0.009) {
-        const now = new Date();
-        const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        const { error: e3 } = await supabase.from("transactions").insert({
-          user_id: userId, kind: "expense", amount: remaining,
-          date: toLocalISODate(next),
-          description: `Saldo devedor fatura — ${invoiceCard.name}`,
-          is_paid: false, card_id: cardId, payment_method: "card",
-        } as any);
+      const anticipatedIds = anticipatedTxs.map((t: any) => t.id);
+      if (anticipatedIds.length) {
+        const { error: e3 } = await supabase.from("transactions")
+          .update({ is_paid: true, date } as any).in("id", anticipatedIds);
         if (e3) { setBusy(false); toast.error(e3.message); return; }
       }
+
       setBusy(false);
-      toast.success("Fatura paga");
+      toast.success(
+        anticipatedTxs.length > 0
+          ? `Fatura paga! ${fmtMoney(anticipatedTotal)} de parcelas futuras liquidadas${discountValue > 0 ? ` com ${fmtMoney(discountValue)} de desconto` : ""}.`
+          : `Fatura paga com sucesso!${discountValue > 0 ? ` Desconto aplicado: ${fmtMoney(discountValue)}.` : ""}`,
+        { duration: 6000 },
+      );
       onDone();
       return;
     }
