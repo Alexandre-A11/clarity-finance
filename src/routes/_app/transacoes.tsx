@@ -307,15 +307,17 @@ function TxForm({
   const isCardFlow = kind === "expense" && method === "card";
   const isInvoicePay = isCardFlow && cardAction === "invoice";
 
-  // Invoice context
-  const { start, end } = useMemo(() => monthRange(new Date()), []);
+  // Invoice context — pending invoice = ALL unpaid card txs up to end of current month
+  // (includes overdue from previous months too).
+  const { end } = useMemo(() => monthRange(new Date()), []);
   const invoiceCard = cards.find((c: any) => c.id === cardId);
-  const invoiceTxs = useMemo(
-    () => allTxs.filter((t: any) => t.card_id === cardId && t.date >= start && t.date <= end),
-    [allTxs, cardId, start, end],
+  const invoicePendingTxs = useMemo(
+    () => allTxs.filter((t: any) =>
+      t.card_id === cardId && t.is_paid === false && (t.date ?? "") <= end,
+    ),
+    [allTxs, cardId, end],
   );
-  const invoicePending = invoiceTxs
-    .filter((t: any) => t.is_paid === false)
+  const invoicePending = invoicePendingTxs
     .reduce((s: number, t: any) => s + Number(t.amount), 0);
 
   useEffect(() => {
