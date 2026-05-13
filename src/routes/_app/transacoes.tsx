@@ -503,7 +503,7 @@ function TxForm({
                 <span className="tabular font-medium">{fmtMoney(invoicePending)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">{invoiceTxs.length} lançamento(s) do mês</span>
+                <span className="text-muted-foreground">{invoicePendingTxs.length} lançamento(s) pendente(s)</span>
               </div>
             </div>
           )}
