@@ -206,17 +206,6 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
             Ver fatura
           </Button>
         </div>
-        {futureInstallments.length > 0 && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="w-full mt-2 justify-center gap-1.5"
-            onClick={() => setShowAnticipate(true)}
-          >
-            <FastForward className="h-3.5 w-3.5" />
-            Antecipar parcelas ({futureInstallments.length})
-          </Button>
-        )}
       </div>
 
       <InvoiceDetailsDialog
@@ -226,13 +215,6 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
         invoiceTxs={invoiceTxs}
         invoiceTotal={invoiceTotal}
         invoicePending={invoicePending}
-      />
-
-      <AnticipateDialog
-        open={showAnticipate}
-        onOpenChange={setShowAnticipate}
-        card={c}
-        items={futureInstallments}
       />
     </Card>
   );
