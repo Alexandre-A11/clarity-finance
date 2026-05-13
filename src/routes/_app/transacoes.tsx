@@ -339,7 +339,7 @@ function TxForm({
   useEffect(() => { setAnticipated(new Set()); }, [cardId]);
 
   const originalTotal = invoicePending + anticipatedTotal;
-  const discountValue = Math.max(0, Number(amount) || 0); // reuse `amount` field as discount
+  const discountValue = Math.max(0, Number(discount) || 0);
   const interestValue = Math.max(0, Number(interest) || 0);
   const cashOut = Math.max(originalTotal - discountValue + interestValue, 0);
 
