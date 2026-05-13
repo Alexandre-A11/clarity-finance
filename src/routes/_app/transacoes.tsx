@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Plus, Trash2, ArrowUpDown,
-  Landmark, Smartphone, Banknote, CreditCard as CardLucide, Receipt,
+  Landmark, Smartphone, Banknote, CreditCard as CardLucide, Receipt, FastForward,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -296,6 +297,7 @@ function TxForm({
   const [cardAction, setCardAction] = useState<CardAction>(preselectInvoiceCardId ? "invoice" : "expense");
   const [cardId, setCardId] = useState<string>(preselectInvoiceCardId ?? "");
   const [amount, setAmount] = useState("");
+  const [discount, setDiscount] = useState("0");
   const [interest, setInterest] = useState("0");
   const [installments, setInstallments] = useState("1");
   const [date, setDate] = useState(todayISO());
@@ -320,53 +322,74 @@ function TxForm({
   const invoicePending = invoicePendingTxs
     .reduce((s: number, t: any) => s + Number(t.amount), 0);
 
-  useEffect(() => {
-    if (isInvoicePay && cardId && invoicePending > 0) {
-      setAmount(invoicePending.toFixed(2));
-    }
-  }, [isInvoicePay, cardId, invoicePending]);
+  // Future installments (after current month) — eligible for anticipation.
+  const futureInstallments = useMemo(
+    () => allTxs.filter((t: any) =>
+      t.card_id === cardId && t.is_paid === false && (t.date ?? "") > end,
+    ).sort((a: any, b: any) => (a.date ?? "").localeCompare(b.date ?? "")),
+    [allTxs, cardId, end],
+  );
+
+  const [anticipateOpen, setAnticipateOpen] = useState(false);
+  const [anticipated, setAnticipated] = useState<Set<string>>(new Set());
+  const anticipatedTxs = futureInstallments.filter((t: any) => anticipated.has(t.id));
+  const anticipatedTotal = anticipatedTxs.reduce((s: number, t: any) => s + Number(t.amount), 0);
+
+  // Reset selections when card changes
+  useEffect(() => { setAnticipated(new Set()); }, [cardId]);
+
+  const originalTotal = invoicePending + anticipatedTotal;
+  const discountValue = Math.max(0, Number(discount) || 0);
+  const interestValue = Math.max(0, Number(interest) || 0);
+  const cashOut = Math.max(originalTotal - discountValue + interestValue, 0);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // --- INVOICE PAYMENT ---
+    // --- INVOICE PAYMENT (with optional anticipation) ---
     if (isInvoicePay) {
       if (!cardId || !invoiceCard) { toast.error("Selecione o cartão"); return; }
-      const paid = Number(amount) || 0;
-      const fees = Number(interest) || 0;
-      const cashOut = paid + fees;
-      if (paid <= 0) { toast.error("Informe um valor a pagar"); return; }
-      if (paid > invoicePending + 0.009) { toast.error("Valor maior que a fatura"); return; }
+      if (originalTotal <= 0) { toast.error("Nada a pagar nesta fatura"); return; }
+      if (discountValue > originalTotal) { toast.error("Desconto maior que a fatura"); return; }
       setBusy(true);
-      const label = `Pagamento Cartão ${invoiceCard.name}${fees > 0 ? " (+ juros)" : ""}`;
+
+      const fees = interestValue;
+      const partsLabel = [
+        `Pagamento Cartão ${invoiceCard.name}`,
+        anticipatedTxs.length > 0 ? `+ ${anticipatedTxs.length} antecipada(s)` : null,
+        fees > 0 ? "(+ juros)" : null,
+        discountValue > 0 ? `(− ${discountValue.toFixed(2)} desc.)` : null,
+      ].filter(Boolean).join(" ");
       const { error: e1 } = await supabase.from("transactions").insert({
         user_id: userId, kind: "expense", amount: cashOut, date,
-        description: label, is_paid: true, card_id: null,
+        description: partsLabel, is_paid: true, card_id: null,
         payment_method: "invoice",
       } as any);
       if (e1) { setBusy(false); toast.error(e1.message); return; }
 
-      const ids = invoicePendingTxs.map((t: any) => t.id);
-      if (ids.length) {
+      // Bulk update: ALL included transactions → is_paid=true.
+      // Per Regra de Ouro: keep original `amount` intact for accurate purchase history.
+      // Anticipated items also have date moved to today so they show in current cash-flow window.
+      const pendingIds = invoicePendingTxs.map((t: any) => t.id);
+      if (pendingIds.length) {
         const { error: e2 } = await supabase.from("transactions")
-          .update({ is_paid: true } as any).in("id", ids);
+          .update({ is_paid: true } as any).in("id", pendingIds);
         if (e2) { setBusy(false); toast.error(e2.message); return; }
       }
-
-      const remaining = Math.max(invoicePending - paid, 0);
-      if (remaining > 0.009) {
-        const now = new Date();
-        const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        const { error: e3 } = await supabase.from("transactions").insert({
-          user_id: userId, kind: "expense", amount: remaining,
-          date: toLocalISODate(next),
-          description: `Saldo devedor fatura — ${invoiceCard.name}`,
-          is_paid: false, card_id: cardId, payment_method: "card",
-        } as any);
+      const anticipatedIds = anticipatedTxs.map((t: any) => t.id);
+      if (anticipatedIds.length) {
+        const { error: e3 } = await supabase.from("transactions")
+          .update({ is_paid: true, date } as any).in("id", anticipatedIds);
         if (e3) { setBusy(false); toast.error(e3.message); return; }
       }
+
       setBusy(false);
-      toast.success("Fatura paga");
+      toast.success(
+        anticipatedTxs.length > 0
+          ? `Fatura paga! ${fmtMoney(anticipatedTotal)} de parcelas futuras liquidadas${discountValue > 0 ? ` com ${fmtMoney(discountValue)} de desconto` : ""}.`
+          : `Fatura paga com sucesso!${discountValue > 0 ? ` Desconto aplicado: ${fmtMoney(discountValue)}.` : ""}`,
+        { duration: 6000 },
+      );
       onDone();
       return;
     }
@@ -499,18 +522,48 @@ function TxForm({
           {cardId && (
             <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Fatura pendente</span>
+                <span className="text-muted-foreground">Fatura pendente ({invoicePendingTxs.length})</span>
                 <span className="tabular font-medium">{fmtMoney(invoicePending)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">{invoicePendingTxs.length} lançamento(s) pendente(s)</span>
+              {anticipatedTxs.length > 0 && (
+                <div className="flex justify-between text-sky-700">
+                  <span>+ {anticipatedTxs.length} parcela(s) antecipada(s)</span>
+                  <span className="tabular font-medium">{fmtMoney(anticipatedTotal)}</span>
+                </div>
+              )}
+              <div className="flex justify-between border-t border-border/60 pt-1 mt-1">
+                <span className="text-muted-foreground">Total da fatura</span>
+                <span className="tabular font-semibold">{fmtMoney(originalTotal)}</span>
               </div>
             </div>
           )}
+
+          {cardId && (
+            <Button
+              type="button" variant="outline" size="sm"
+              className="w-full justify-center gap-1.5"
+              onClick={() => setAnticipateOpen(true)}
+              disabled={futureInstallments.length === 0}
+            >
+              <FastForward className="h-3.5 w-3.5" />
+              {futureInstallments.length === 0
+                ? "Sem parcelas futuras para antecipar"
+                : `Antecipar parcelas de meses futuros (${futureInstallments.length} disponíveis)`}
+            </Button>
+          )}
+
+          <AnticipateInlineDialog
+            open={anticipateOpen}
+            onOpenChange={setAnticipateOpen}
+            items={futureInstallments}
+            selected={anticipated}
+            onChange={setAnticipated}
+          />
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Valor a pagar (R$)</Label>
-              <Input type="number" step="0.01" min="0" required value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <Label>Desconto por antecipação (R$)</Label>
+              <Input type="number" step="0.01" min="0" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="0,00" />
             </div>
             <div className="space-y-2">
               <Label>Juros/multa (opcional)</Label>
@@ -521,11 +574,19 @@ function TxForm({
             <Label>Data do pagamento</Label>
             <DatePicker value={date} onChange={setDate} />
           </div>
-          <div className="rounded-lg border border-border p-3 text-sm flex justify-between">
-            <span className="text-muted-foreground">Total debitado da conta</span>
-            <span className="tabular font-semibold">{fmtMoney((Number(amount) || 0) + (Number(interest) || 0))}</span>
+          <div className="rounded-lg border border-border p-3 text-sm space-y-1">
+            <div className="flex justify-between"><span className="text-muted-foreground">Subtotal fatura</span><span className="tabular">{fmtMoney(originalTotal)}</span></div>
+            {discountValue > 0 && (
+              <div className="flex justify-between text-emerald-700"><span>Desconto</span><span className="tabular">− {fmtMoney(discountValue)}</span></div>
+            )}
+            {interestValue > 0 && (
+              <div className="flex justify-between text-amber-700"><span>Juros/multa</span><span className="tabular">+ {fmtMoney(interestValue)}</span></div>
+            )}
+            <div className="flex justify-between border-t border-border pt-1 font-semibold">
+              <span>Total debitado da conta</span><span className="tabular">{fmtMoney(cashOut)}</span>
+            </div>
           </div>
-          <Button type="submit" className="w-full" disabled={busy}>
+          <Button type="submit" className="w-full" disabled={busy || originalTotal <= 0}>
             {busy ? "Salvando..." : "Confirmar pagamento da fatura"}
           </Button>
         </>
@@ -581,7 +642,96 @@ function TxForm({
   );
 }
 
-/* ============ A receber tab ============ */
+/* ============ Anticipate sub-dialog (used inside invoice payment) ============ */
+
+function AnticipateInlineDialog({
+  open, onOpenChange, items, selected, onChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  items: any[];
+  selected: Set<string>;
+  onChange: (s: Set<string>) => void;
+}) {
+  const [draft, setDraft] = useState<Set<string>>(selected);
+
+  useEffect(() => { if (open) setDraft(new Set(selected)); }, [open, selected]);
+
+  const toggle = (id: string) => {
+    const n = new Set(draft);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    setDraft(n);
+  };
+  const selectAll = () => setDraft(new Set(items.map((t: any) => t.id)));
+  const clear = () => setDraft(new Set());
+
+  const total = items
+    .filter((t: any) => draft.has(t.id))
+    .reduce((s: number, t: any) => s + Number(t.amount), 0);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Antecipar parcelas futuras</DialogTitle>
+        </DialogHeader>
+        <p className="text-xs text-muted-foreground">
+          Selecione as parcelas que deseja liquidar junto com a fatura atual.
+          Elas serão marcadas como pagas e somadas ao valor desta transação.
+        </p>
+
+        {items.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">
+            Sem parcelas futuras pendentes.
+          </p>
+        ) : (
+          <>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-muted-foreground">{items.length} parcela(s) disponíveis</span>
+              <div className="flex gap-1">
+                <Button type="button" size="sm" variant="ghost" onClick={selectAll}>Todas</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={clear}>Limpar</Button>
+              </div>
+            </div>
+            <ul className="divide-y divide-border max-h-[45vh] overflow-y-auto -mx-1">
+              {items.map((t: any) => (
+                <li key={t.id} className="px-1 py-2 flex items-center gap-3">
+                  <Checkbox checked={draft.has(t.id)} onCheckedChange={() => toggle(t.id)} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm truncate">{t.description ?? "Parcela"}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Vence em {fmtDate(t.date)}
+                      {t.installment_index ? ` · ${t.installment_index}ª parcela` : ""}
+                    </p>
+                  </div>
+                  <span className="text-sm tabular font-medium">{fmtMoney(t.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        <div className="rounded-lg border border-border p-3 text-sm flex justify-between">
+          <span className="text-muted-foreground">{draft.size} selecionada(s)</span>
+          <span className="tabular font-semibold">{fmtMoney(total)}</span>
+        </div>
+
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button
+            type="button" className="flex-1"
+            onClick={() => { onChange(draft); onOpenChange(false); }}
+          >
+            Aplicar à fatura
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function ReceberTab() {
   const { user } = useAuth();
