@@ -590,20 +590,35 @@ function TxForm({
             onChange={setAnticipated}
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Desconto por antecipação (R$)</Label>
-              <Input type="number" step="0.01" min="0" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="0,00" />
-            </div>
-            <div className="space-y-2">
-              <Label>Juros/multa (opcional)</Label>
-              <Input type="number" step="0.01" min="0" value={interest} onChange={(e) => setInterest(e.target.value)} />
-            </div>
-          </div>
           <div className="space-y-2">
             <Label>Data do pagamento</Label>
             <DatePicker value={date} onChange={setDate} />
           </div>
+
+          {isOverdue || showInterest ? (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                Juros/multa (R$)
+                {isOverdue && (
+                  <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                    Fatura em atraso
+                  </span>
+                )}
+              </Label>
+              <Input type="number" step="0.01" min="0" value={interest} onChange={(e) => setInterest(e.target.value)} placeholder="0,00" />
+              {!isOverdue && (
+                <button type="button" className="text-[11px] text-muted-foreground hover:text-foreground underline"
+                  onClick={() => { setShowInterest(false); setInterest("0"); }}>
+                  Remover encargos
+                </button>
+              )}
+            </div>
+          ) : (
+            <button type="button" className="text-xs text-muted-foreground hover:text-foreground underline"
+              onClick={() => setShowInterest(true)}>
+              + Adicionar encargos
+            </button>
+          )}
           <div className="rounded-lg border border-border p-3 text-sm space-y-1">
             <div className="flex justify-between"><span className="text-muted-foreground">Subtotal fatura</span><span className="tabular">{fmtMoney(originalTotal)}</span></div>
             {discountValue > 0 && (
