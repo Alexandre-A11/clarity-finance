@@ -131,8 +131,10 @@ function LancamentosTab({ initialAction, initialCardId }: { initialAction?: stri
     const arr = [...visibleTxs];
     arr.sort((a: any, b: any) => {
       let cmp = 0;
-      if (sortKey === "date") cmp = (a.date ?? "").localeCompare(b.date ?? "");
-      else if (sortKey === "description") {
+      if (sortKey === "date") {
+        cmp = (a.date ?? "").localeCompare(b.date ?? "");
+        if (cmp === 0) cmp = (a.created_at ?? "").localeCompare(b.created_at ?? "");
+      } else if (sortKey === "description") {
         const an = (a.description ?? cats.find((c: any) => c.id === a.category_id)?.name ?? "").toString();
         const bn = (b.description ?? cats.find((c: any) => c.id === b.category_id)?.name ?? "").toString();
         cmp = an.localeCompare(bn, "pt-BR", { sensitivity: "base" });
