@@ -101,7 +101,7 @@ function LancamentosTab({ initialAction, initialCardId }: { initialAction?: stri
   const { user } = useAuth();
   const nav = useNavigate();
   const { data: allTxs } = useRealtimeQuery("transactions", user?.id, (q) =>
-    q.order("date", { ascending: false }).limit(2000)
+    q.order("date", { ascending: false }).order("created_at", { ascending: false }).limit(2000)
   );
   const { data: cats } = useRealtimeQuery("categories", user?.id);
   const [open, setOpen] = useState(false);
