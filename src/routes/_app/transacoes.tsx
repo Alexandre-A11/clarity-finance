@@ -353,12 +353,24 @@ function TxForm({
   const anticipatedTxs = futureInstallments.filter((t: any) => anticipated.has(t.id));
   const anticipatedTotal = anticipatedTxs.reduce((s: number, t: any) => s + Number(t.amount), 0);
 
-  // Reset selections when card changes
-  useEffect(() => { setAnticipated(new Set()); }, [cardId]);
+  // Reset selections + discount when card changes
+  useEffect(() => { setAnticipated(new Set()); setDiscount("0"); }, [cardId]);
+
+  // Detect overdue: invoice has any pending tx with date < today, OR card.next_due_date < today
+  const todayStr = todayISO();
+  const isOverdue = useMemo(() => {
+    if (!invoiceCard) return false;
+    if (invoiceCard.next_due_date && invoiceCard.next_due_date < todayStr) return true;
+    return invoicePendingTxs.some((t: any) => (t.date ?? "") < todayStr);
+  }, [invoiceCard, invoicePendingTxs, todayStr]);
+
+  const [showInterest, setShowInterest] = useState(false);
+  // Auto-show when overdue
+  useEffect(() => { if (isOverdue) setShowInterest(true); }, [isOverdue]);
 
   const originalTotal = invoicePending + anticipatedTotal;
   const discountValue = Math.max(0, Number(discount) || 0);
-  const interestValue = Math.max(0, Number(interest) || 0);
+  const interestValue = showInterest ? Math.max(0, Number(interest) || 0) : 0;
   const cashOut = Math.max(originalTotal - discountValue + interestValue, 0);
 
   const submit = async (e: React.FormEvent) => {
