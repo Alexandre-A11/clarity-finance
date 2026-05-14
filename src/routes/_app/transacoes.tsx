@@ -1,7 +1,7 @@
 import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { useRealtimeQuery } from "@/lib/data-hooks";
-import { fmtMoney, fmtDate, todayISO, monthRange, toLocalISODate, installmentDates } from "@/lib/finance";
+import { fmtMoney, fmtDate, todayISO, monthRange, installmentDates } from "@/lib/finance";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ import { CategoryIcon } from "@/components/icon-picker";
 import { CategoryManagerTrigger } from "@/components/category-manager";
 import { DatePicker } from "@/components/date-picker";
 import { NumberedPagination } from "@/components/numbered-pagination";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePrivacy } from "@/lib/privacy-context";
 
 type TxSearch = {
@@ -40,7 +41,7 @@ type PayMethod = "checking" | "pix" | "cash" | "card" | "invoice";
 const PAGE_SIZE = 15;
 
 const METHOD_META: Record<PayMethod, { label: string; Icon: React.ElementType; color: string }> = {
-  checking: { label: "Conta corrente", Icon: Landmark, color: "var(--primary)" },
+  checking: { label: "Débito", Icon: Landmark, color: "var(--primary)" },
   pix:      { label: "Pix",             Icon: Smartphone, color: "#10b981" },
   cash:     { label: "Dinheiro",        Icon: Banknote, color: "#f59e0b" },
   card:     { label: "Cartão",          Icon: CardLucide, color: "#8b5cf6" },
@@ -100,7 +101,7 @@ function LancamentosTab({ initialAction, initialCardId }: { initialAction?: stri
   const { user } = useAuth();
   const nav = useNavigate();
   const { data: allTxs } = useRealtimeQuery("transactions", user?.id, (q) =>
-    q.order("date", { ascending: false }).limit(2000)
+    q.order("date", { ascending: false }).order("created_at", { ascending: false }).limit(2000)
   );
   const { data: cats } = useRealtimeQuery("categories", user?.id);
   const [open, setOpen] = useState(false);
@@ -130,8 +131,10 @@ function LancamentosTab({ initialAction, initialCardId }: { initialAction?: stri
     const arr = [...visibleTxs];
     arr.sort((a: any, b: any) => {
       let cmp = 0;
-      if (sortKey === "date") cmp = (a.date ?? "").localeCompare(b.date ?? "");
-      else if (sortKey === "description") {
+      if (sortKey === "date") {
+        cmp = (a.date ?? "").localeCompare(b.date ?? "");
+        if (cmp === 0) cmp = (a.created_at ?? "").localeCompare(b.created_at ?? "");
+      } else if (sortKey === "description") {
         const an = (a.description ?? cats.find((c: any) => c.id === a.category_id)?.name ?? "").toString();
         const bn = (b.description ?? cats.find((c: any) => c.id === b.category_id)?.name ?? "").toString();
         cmp = an.localeCompare(bn, "pt-BR", { sensitivity: "base" });
@@ -207,67 +210,82 @@ function LancamentosTab({ initialAction, initialCardId }: { initialAction?: stri
             Nenhuma transação. Clique em <b>Nova</b> para começar.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-xs text-muted-foreground bg-muted/40">
-                <tr>
-                  <th className="text-center px-4 py-3 font-medium w-32 cursor-pointer select-none" onClick={() => toggleSort("date")}>
-                    Data
-                  </th>
-                  <th className="text-left px-5 py-3 font-medium cursor-pointer select-none" onClick={() => toggleSort("description")}>
-                    Descrição
-                  </th>
-                  <th className="text-left px-3 py-3 font-medium">Categoria</th>
-                  <th className="text-left px-3 py-3 font-medium cursor-pointer select-none" onClick={() => toggleSort("method")}>
-                    Meio
-                  </th>
-                  <th className="text-right px-4 py-3 font-medium w-32">Valor</th>
-                  <th className="px-3 py-3 w-12"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {pageRows.map((t: any) => {
-                  const cat = cats.find((c: any) => c.id === t.category_id);
-                  const isInvoicePay = t.payment_method === "invoice";
-                  return (
-                    <tr key={t.id} className="hover:bg-muted/30">
-                      <td className="px-4 py-3 text-center tabular text-muted-foreground">{fmtDate(t.date)}</td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span
-                            className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
-                            style={{ background: (cat?.color ?? (isInvoicePay ? "#0ea5e9" : "#94a3b8")) + "1a", color: cat?.color ?? (isInvoicePay ? "#0ea5e9" : "#94a3b8") }}
-                          >
-                            {isInvoicePay
-                              ? <Receipt className="h-3.5 w-3.5" />
-                              : <CategoryIcon name={cat?.icon} className="h-3.5 w-3.5" />}
-                          </span>
-                          <span className="truncate">{t.description ?? cat?.name ?? "Lançamento"}</span>
-                          {isInvoicePay && (
-                            <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">
-                              Fatura
+          <TooltipProvider delayDuration={400}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs text-muted-foreground bg-muted/40">
+                  <tr>
+                    <th className="text-center px-4 py-3 font-medium w-32 cursor-pointer select-none" onClick={() => toggleSort("date")}>
+                      Data
+                    </th>
+                    <th className="text-left px-5 py-3 font-medium cursor-pointer select-none" onClick={() => toggleSort("description")}>
+                      Descrição
+                    </th>
+                    <th className="text-left px-3 py-3 font-medium">Categoria</th>
+                    <th className="text-left px-3 py-3 font-medium cursor-pointer select-none" onClick={() => toggleSort("method")}>
+                      Meio
+                    </th>
+                    <th className="text-right px-4 py-3 font-medium w-32">Valor</th>
+                    <th className="px-3 py-3 w-12"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {pageRows.map((t: any) => {
+                    const cat = cats.find((c: any) => c.id === t.category_id);
+                    const isInvoicePay = t.payment_method === "invoice";
+                    const createdAt = t.created_at ? new Date(t.created_at) : null;
+                    const timeStr = createdAt
+                      ? createdAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+                      : null;
+                    return (
+                      <tr key={t.id} className="hover:bg-muted/30">
+                        <td className="px-4 py-3 text-center tabular text-muted-foreground">
+                          {timeStr ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-help">{fmtDate(t.date)}</span>
+                              </TooltipTrigger>
+                              <TooltipContent>Registrada às {timeStr}</TooltipContent>
+                            </Tooltip>
+                          ) : fmtDate(t.date)}
+                        </td>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span
+                              className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
+                              style={{ background: (cat?.color ?? (isInvoicePay ? "#0ea5e9" : "#94a3b8")) + "1a", color: cat?.color ?? (isInvoicePay ? "#0ea5e9" : "#94a3b8") }}
+                            >
+                              {isInvoicePay
+                                ? <Receipt className="h-3.5 w-3.5" />
+                                : <CategoryIcon name={cat?.icon} className="h-3.5 w-3.5" />}
                             </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 text-muted-foreground">{cat?.name ?? (isInvoicePay ? "Cartão" : "—")}</td>
-                      <td className="px-3 py-3"><MethodBadge method={t.payment_method as PayMethod} /></td>
-                      <td className="px-4 py-3 text-right">
-                        <span className={`tabular font-medium ${t.kind === "income" ? "text-success" : "text-foreground"}`}>
-                          {t.kind === "income" ? "+" : "−"} {fmtMoney(t.amount)}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-right">
-                        <Button variant="ghost" size="sm" onClick={() => remove(t.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                            <span className="truncate">{t.description ?? cat?.name ?? "Lançamento"}</span>
+                            {isInvoicePay && (
+                              <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">
+                                Fatura
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-muted-foreground">{cat?.name ?? (isInvoicePay ? "Cartão" : "—")}</td>
+                        <td className="px-3 py-3"><MethodBadge method={t.payment_method as PayMethod} /></td>
+                        <td className="px-4 py-3 text-right">
+                          <span className={`tabular font-medium ${t.kind === "income" ? "text-success" : "text-foreground"}`}>
+                            {t.kind === "income" ? "+" : "−"} {fmtMoney(t.amount)}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-right">
+                          <Button variant="ghost" size="sm" onClick={() => remove(t.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </TooltipProvider>
         )}
 
         {pageCount > 1 && (
@@ -335,12 +353,24 @@ function TxForm({
   const anticipatedTxs = futureInstallments.filter((t: any) => anticipated.has(t.id));
   const anticipatedTotal = anticipatedTxs.reduce((s: number, t: any) => s + Number(t.amount), 0);
 
-  // Reset selections when card changes
-  useEffect(() => { setAnticipated(new Set()); }, [cardId]);
+  // Reset selections + discount when card changes
+  useEffect(() => { setAnticipated(new Set()); setDiscount("0"); }, [cardId]);
+
+  // Detect overdue: invoice has any pending tx with date < today, OR card.next_due_date < today
+  const todayStr = todayISO();
+  const isOverdue = useMemo(() => {
+    if (!invoiceCard) return false;
+    if (invoiceCard.next_due_date && invoiceCard.next_due_date < todayStr) return true;
+    return invoicePendingTxs.some((t: any) => (t.date ?? "") < todayStr);
+  }, [invoiceCard, invoicePendingTxs, todayStr]);
+
+  const [showInterest, setShowInterest] = useState(false);
+  // Auto-show when overdue
+  useEffect(() => { if (isOverdue) setShowInterest(true); }, [isOverdue]);
 
   const originalTotal = invoicePending + anticipatedTotal;
   const discountValue = Math.max(0, Number(discount) || 0);
-  const interestValue = Math.max(0, Number(interest) || 0);
+  const interestValue = showInterest ? Math.max(0, Number(interest) || 0) : 0;
   const cashOut = Math.max(originalTotal - discountValue + interestValue, 0);
 
   const submit = async (e: React.FormEvent) => {
@@ -469,7 +499,7 @@ function TxForm({
           <Select value={method} onValueChange={(v) => setMethod(v as PayMethod)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="checking">Conta corrente</SelectItem>
+              <SelectItem value="checking">Débito</SelectItem>
               <SelectItem value="pix">Pix</SelectItem>
               <SelectItem value="cash">Dinheiro</SelectItem>
               <SelectItem value="card">Cartão de crédito</SelectItem>
@@ -558,22 +588,39 @@ function TxForm({
             items={futureInstallments}
             selected={anticipated}
             onChange={setAnticipated}
+            discount={discount}
+            onDiscountChange={setDiscount}
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Desconto por antecipação (R$)</Label>
-              <Input type="number" step="0.01" min="0" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="0,00" />
-            </div>
-            <div className="space-y-2">
-              <Label>Juros/multa (opcional)</Label>
-              <Input type="number" step="0.01" min="0" value={interest} onChange={(e) => setInterest(e.target.value)} />
-            </div>
-          </div>
           <div className="space-y-2">
             <Label>Data do pagamento</Label>
             <DatePicker value={date} onChange={setDate} />
           </div>
+
+          {isOverdue || showInterest ? (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                Juros/multa (R$)
+                {isOverdue && (
+                  <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                    Fatura em atraso
+                  </span>
+                )}
+              </Label>
+              <Input type="number" step="0.01" min="0" value={interest} onChange={(e) => setInterest(e.target.value)} placeholder="0,00" />
+              {!isOverdue && (
+                <button type="button" className="text-[11px] text-muted-foreground hover:text-foreground underline"
+                  onClick={() => { setShowInterest(false); setInterest("0"); }}>
+                  Remover encargos
+                </button>
+              )}
+            </div>
+          ) : (
+            <button type="button" className="text-xs text-muted-foreground hover:text-foreground underline"
+              onClick={() => setShowInterest(true)}>
+              + Adicionar encargos
+            </button>
+          )}
           <div className="rounded-lg border border-border p-3 text-sm space-y-1">
             <div className="flex justify-between"><span className="text-muted-foreground">Subtotal fatura</span><span className="tabular">{fmtMoney(originalTotal)}</span></div>
             {discountValue > 0 && (
@@ -645,17 +692,25 @@ function TxForm({
 /* ============ Anticipate sub-dialog (used inside invoice payment) ============ */
 
 function AnticipateInlineDialog({
-  open, onOpenChange, items, selected, onChange,
+  open, onOpenChange, items, selected, onChange, discount, onDiscountChange,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   items: any[];
   selected: Set<string>;
   onChange: (s: Set<string>) => void;
+  discount: string;
+  onDiscountChange: (v: string) => void;
 }) {
   const [draft, setDraft] = useState<Set<string>>(selected);
+  const [draftDiscount, setDraftDiscount] = useState<string>(discount);
 
-  useEffect(() => { if (open) setDraft(new Set(selected)); }, [open, selected]);
+  useEffect(() => {
+    if (open) {
+      setDraft(new Set(selected));
+      setDraftDiscount(discount);
+    }
+  }, [open, selected, discount]);
 
   const toggle = (id: string) => {
     const n = new Set(draft);
@@ -668,6 +723,14 @@ function AnticipateInlineDialog({
   const total = items
     .filter((t: any) => draft.has(t.id))
     .reduce((s: number, t: any) => s + Number(t.amount), 0);
+  const discountValue = Math.max(0, Number(draftDiscount) || 0);
+  const finalTotal = Math.max(total - discountValue, 0);
+
+  const apply = () => {
+    onChange(draft);
+    onDiscountChange(draft.size === 0 ? "0" : draftDiscount);
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -693,7 +756,7 @@ function AnticipateInlineDialog({
                 <Button type="button" size="sm" variant="ghost" onClick={clear}>Limpar</Button>
               </div>
             </div>
-            <ul className="divide-y divide-border max-h-[45vh] overflow-y-auto -mx-1">
+            <ul className="divide-y divide-border max-h-[40vh] overflow-y-auto -mx-1">
               {items.map((t: any) => (
                 <li key={t.id} className="px-1 py-2 flex items-center gap-3">
                   <Checkbox checked={draft.has(t.id)} onCheckedChange={() => toggle(t.id)} />
@@ -708,22 +771,40 @@ function AnticipateInlineDialog({
                 </li>
               ))}
             </ul>
+
+            <div className="space-y-2">
+              <Label>Desconto por antecipação (R$)</Label>
+              <Input type="number" step="0.01" min="0" value={draftDiscount}
+                onChange={(e) => setDraftDiscount(e.target.value)} placeholder="0,00" />
+              <p className="text-[11px] text-muted-foreground">
+                Aplicado apenas sobre o total das parcelas antecipadas.
+              </p>
+            </div>
           </>
         )}
 
-        <div className="rounded-lg border border-border p-3 text-sm flex justify-between">
-          <span className="text-muted-foreground">{draft.size} selecionada(s)</span>
-          <span className="tabular font-semibold">{fmtMoney(total)}</span>
+        <div className="rounded-lg border border-border p-3 text-sm space-y-1">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">{draft.size} selecionada(s)</span>
+            <span className="tabular">{fmtMoney(total)}</span>
+          </div>
+          {discountValue > 0 && (
+            <div className="flex justify-between text-emerald-700">
+              <span>Desconto</span>
+              <span className="tabular">− {fmtMoney(discountValue)}</span>
+            </div>
+          )}
+          <div className="flex justify-between border-t border-border/60 pt-1 font-semibold">
+            <span>Total antecipado</span>
+            <span className="tabular">{fmtMoney(finalTotal)}</span>
+          </div>
         </div>
 
         <div className="flex gap-2">
           <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button
-            type="button" className="flex-1"
-            onClick={() => { onChange(draft); onOpenChange(false); }}
-          >
+          <Button type="button" className="flex-1" onClick={apply}>
             Aplicar à fatura
           </Button>
         </div>

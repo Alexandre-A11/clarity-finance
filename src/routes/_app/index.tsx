@@ -73,12 +73,15 @@ function Dashboard() {
   const cats = Array.isArray(catsData) ? catsData : [];
   const ongoing = Array.isArray(ongoingData) ? ongoingData : [];
 
+  // KPIs: contar TODAS as despesas do mês (incluindo cartão), excluindo
+  // o lançamento "Pagamento de Fatura" para evitar dupla contagem,
+  // já que as compras do cartão já estão somadas individualmente.
   const totals = useMemo(() => {
     const income = txs
       .filter((t: any) => t?.kind === "income")
       .reduce((s: number, t: any) => s + (Number(t?.amount) || 0), 0);
     const expense = txs
-      .filter((t: any) => t?.kind === "expense")
+      .filter((t: any) => t?.kind === "expense" && t?.payment_method !== "invoice")
       .reduce((s: number, t: any) => s + (Number(t?.amount) || 0), 0);
     return { income, expense, balance: income - expense };
   }, [txs]);
@@ -91,10 +94,12 @@ function Dashboard() {
     [receivables]
   );
 
+  // Gráfico por categoria: soma TODAS as despesas (débito + crédito),
+  // excluindo apenas o lançamento "Pagamento de Fatura".
   const byCategory = useMemo(() => {
     const map = new Map<string, { name: string; value: number; color: string }>();
     txs
-      .filter((t: any) => t?.kind === "expense")
+      .filter((t: any) => t?.kind === "expense" && t?.payment_method !== "invoice")
       .forEach((t: any) => {
         const cat = cats.find((c: any) => c?.id === t?.category_id);
         const k = cat?.id ?? "none";

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { useRealtimeQuery } from "@/lib/data-hooks";
-import { fmtMoney, fmtDate, monthRange, parseLocalDate } from "@/lib/finance";
+import { fmtMoney, fmtDate, monthRange } from "@/lib/finance";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, CreditCard as CardIcon, Lock, Trash2, Receipt } from "lucide-react";
+import { Plus, CreditCard as CardIcon, Lock, Trash2, Receipt, Layers } from "lucide-react";
 import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -58,39 +58,40 @@ function CartoesPage() {
       {installments.length > 0 && (
         <div>
           <h2 className="text-sm font-medium mb-3">Compras parceladas</h2>
-          <Card className="shadow-soft overflow-hidden">
-            <ul className="divide-y divide-border">
-              {installments.map((p: any) => {
-                const card = cards.find((c: any) => c.id === p.card_id);
-                const today = new Date();
-                const paid = txs.filter((t: any) => {
-                  const d = parseLocalDate(t.date);
-                  return t.installment_purchase_id === p.id && d && d <= today;
-                }).length;
-                const remaining = p.installments_total - paid;
-                const monthly = Number(p.total_amount) / p.installments_total;
-                return (
-                  <li key={p.id} className="px-5 py-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <p className="text-sm font-medium">{p.description}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {card?.name ?? "Cartão removido"} • {fmtMoney(monthly)}/mês
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-sm font-semibold tabular">{paid}/{p.installments_total}</span>
-                        <p className="text-xs text-muted-foreground">{remaining} restantes</p>
-                      </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {installments.map((p: any) => {
+              const card = cards.find((c: any) => c.id === p.card_id);
+              const purchaseTxs = txs.filter((t: any) => t.installment_purchase_id === p.id);
+              const paidCount = purchaseTxs.filter((t: any) => t.is_paid === true).length;
+              const totalCount = p.installments_total;
+              const remaining = totalCount - paidCount;
+              const monthly = Number(p.total_amount) / totalCount;
+              const progress = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
+              return (
+                <Card key={p.id} className="p-4 shadow-soft">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{p.description}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {card?.name ?? "Cartão removido"} · {fmtMoney(monthly)}/mês
+                      </p>
                     </div>
-                    <div className="h-1 bg-secondary rounded-full overflow-hidden">
-                      <div className="h-full bg-primary" style={{ width: `${(paid / p.installments_total) * 100}%` }} />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </Card>
+                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-2 py-1 rounded-md bg-primary-soft text-primary border border-primary/15 shrink-0">
+                      <Layers className="h-3 w-3" />
+                      Parcela {paidCount} de {totalCount}
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+                  </div>
+                  <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground tabular">
+                    <span>{remaining} restante{remaining !== 1 ? "s" : ""}</span>
+                    <span>Total {fmtMoney(p.total_amount)}</span>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -205,6 +206,20 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
             Ver fatura
           </Button>
         </div>
+
+        {invoiceTotal > 0 && (
+          <div className="mt-3">
+            <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all ${invoiceFullyPaid ? "bg-emerald-500" : "bg-primary"}`}
+                style={{ width: `${Math.min((invoicePaidSum / invoiceTotal) * 100, 100)}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground tabular mt-1">
+              {((invoicePaidSum / invoiceTotal) * 100).toFixed(0)}% pago
+            </p>
+          </div>
+        )}
       </div>
 
       <InvoiceDetailsDialog
@@ -238,10 +253,23 @@ function InvoiceDetailsDialog({
         ) : (
           <ul className="divide-y divide-border text-sm">
             {invoiceTxs.map((t: any) => (
-              <li key={t.id} className="py-2 flex justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate">{t.description ?? "Lançamento"}</p>
-                  <p className="text-[11px] text-muted-foreground">{fmtDate(t.date)}{t.is_installment ? ` · parcela ${t.installment_index}` : ""}</p>
+              <li key={t.id} className="py-2.5 flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <p className="truncate">{(t.description ?? "Lançamento").replace(/\s*\(\d+\/\d+\)\s*$/, "")}</p>
+                    {t.is_installment && t.installment_index && (
+                      <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-primary-soft text-primary border border-primary/15 shrink-0">
+                        <Layers className="h-2.5 w-2.5" />
+                        Parcela {t.installment_index}
+                      </span>
+                    )}
+                    {t.is_paid && (
+                      <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                        Paga
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{fmtDate(t.date)}</p>
                 </div>
                 <span className="tabular font-medium shrink-0">{fmtMoney(t.amount)}</span>
               </li>
