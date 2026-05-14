@@ -58,39 +58,40 @@ function CartoesPage() {
       {installments.length > 0 && (
         <div>
           <h2 className="text-sm font-medium mb-3">Compras parceladas</h2>
-          <Card className="shadow-soft overflow-hidden">
-            <ul className="divide-y divide-border">
-              {installments.map((p: any) => {
-                const card = cards.find((c: any) => c.id === p.card_id);
-                const today = new Date();
-                const paid = txs.filter((t: any) => {
-                  const d = parseLocalDate(t.date);
-                  return t.installment_purchase_id === p.id && d && d <= today;
-                }).length;
-                const remaining = p.installments_total - paid;
-                const monthly = Number(p.total_amount) / p.installments_total;
-                return (
-                  <li key={p.id} className="px-5 py-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <p className="text-sm font-medium">{p.description}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {card?.name ?? "Cartão removido"} • {fmtMoney(monthly)}/mês
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-sm font-semibold tabular">{paid}/{p.installments_total}</span>
-                        <p className="text-xs text-muted-foreground">{remaining} restantes</p>
-                      </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {installments.map((p: any) => {
+              const card = cards.find((c: any) => c.id === p.card_id);
+              const purchaseTxs = txs.filter((t: any) => t.installment_purchase_id === p.id);
+              const paidCount = purchaseTxs.filter((t: any) => t.is_paid === true).length;
+              const totalCount = p.installments_total;
+              const remaining = totalCount - paidCount;
+              const monthly = Number(p.total_amount) / totalCount;
+              const progress = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
+              return (
+                <Card key={p.id} className="p-4 shadow-soft">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{p.description}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {card?.name ?? "Cartão removido"} · {fmtMoney(monthly)}/mês
+                      </p>
                     </div>
-                    <div className="h-1 bg-secondary rounded-full overflow-hidden">
-                      <div className="h-full bg-primary" style={{ width: `${(paid / p.installments_total) * 100}%` }} />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </Card>
+                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-2 py-1 rounded-md bg-primary-soft text-primary border border-primary/15 shrink-0">
+                      <Layers className="h-3 w-3" />
+                      Parcela {paidCount} de {totalCount}
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+                  </div>
+                  <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground tabular">
+                    <span>{remaining} restante{remaining !== 1 ? "s" : ""}</span>
+                    <span>Total {fmtMoney(p.total_amount)}</span>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
