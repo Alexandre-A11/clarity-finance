@@ -40,7 +40,7 @@ type PayMethod = "checking" | "pix" | "cash" | "card" | "invoice";
 const PAGE_SIZE = 15;
 
 const METHOD_META: Record<PayMethod, { label: string; Icon: React.ElementType; color: string }> = {
-  checking: { label: "Conta corrente", Icon: Landmark, color: "var(--primary)" },
+  checking: { label: "Débito", Icon: Landmark, color: "var(--primary)" },
   pix:      { label: "Pix",             Icon: Smartphone, color: "#10b981" },
   cash:     { label: "Dinheiro",        Icon: Banknote, color: "#f59e0b" },
   card:     { label: "Cartão",          Icon: CardLucide, color: "#8b5cf6" },
