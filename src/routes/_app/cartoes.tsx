@@ -253,10 +253,23 @@ function InvoiceDetailsDialog({
         ) : (
           <ul className="divide-y divide-border text-sm">
             {invoiceTxs.map((t: any) => (
-              <li key={t.id} className="py-2 flex justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate">{t.description ?? "Lançamento"}</p>
-                  <p className="text-[11px] text-muted-foreground">{fmtDate(t.date)}{t.is_installment ? ` · parcela ${t.installment_index}` : ""}</p>
+              <li key={t.id} className="py-2.5 flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <p className="truncate">{(t.description ?? "Lançamento").replace(/\s*\(\d+\/\d+\)\s*$/, "")}</p>
+                    {t.is_installment && t.installment_index && (
+                      <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-primary-soft text-primary border border-primary/15 shrink-0">
+                        <Layers className="h-2.5 w-2.5" />
+                        Parcela {t.installment_index}
+                      </span>
+                    )}
+                    {t.is_paid && (
+                      <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                        Paga
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{fmtDate(t.date)}</p>
                 </div>
                 <span className="tabular font-medium shrink-0">{fmtMoney(t.amount)}</span>
               </li>
