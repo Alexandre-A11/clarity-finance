@@ -692,17 +692,25 @@ function TxForm({
 /* ============ Anticipate sub-dialog (used inside invoice payment) ============ */
 
 function AnticipateInlineDialog({
-  open, onOpenChange, items, selected, onChange,
+  open, onOpenChange, items, selected, onChange, discount, onDiscountChange,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   items: any[];
   selected: Set<string>;
   onChange: (s: Set<string>) => void;
+  discount: string;
+  onDiscountChange: (v: string) => void;
 }) {
   const [draft, setDraft] = useState<Set<string>>(selected);
+  const [draftDiscount, setDraftDiscount] = useState<string>(discount);
 
-  useEffect(() => { if (open) setDraft(new Set(selected)); }, [open, selected]);
+  useEffect(() => {
+    if (open) {
+      setDraft(new Set(selected));
+      setDraftDiscount(discount);
+    }
+  }, [open, selected, discount]);
 
   const toggle = (id: string) => {
     const n = new Set(draft);
@@ -715,6 +723,14 @@ function AnticipateInlineDialog({
   const total = items
     .filter((t: any) => draft.has(t.id))
     .reduce((s: number, t: any) => s + Number(t.amount), 0);
+  const discountValue = Math.max(0, Number(draftDiscount) || 0);
+  const finalTotal = Math.max(total - discountValue, 0);
+
+  const apply = () => {
+    onChange(draft);
+    onDiscountChange(draft.size === 0 ? "0" : draftDiscount);
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -740,7 +756,7 @@ function AnticipateInlineDialog({
                 <Button type="button" size="sm" variant="ghost" onClick={clear}>Limpar</Button>
               </div>
             </div>
-            <ul className="divide-y divide-border max-h-[45vh] overflow-y-auto -mx-1">
+            <ul className="divide-y divide-border max-h-[40vh] overflow-y-auto -mx-1">
               {items.map((t: any) => (
                 <li key={t.id} className="px-1 py-2 flex items-center gap-3">
                   <Checkbox checked={draft.has(t.id)} onCheckedChange={() => toggle(t.id)} />
@@ -755,22 +771,40 @@ function AnticipateInlineDialog({
                 </li>
               ))}
             </ul>
+
+            <div className="space-y-2">
+              <Label>Desconto por antecipação (R$)</Label>
+              <Input type="number" step="0.01" min="0" value={draftDiscount}
+                onChange={(e) => setDraftDiscount(e.target.value)} placeholder="0,00" />
+              <p className="text-[11px] text-muted-foreground">
+                Aplicado apenas sobre o total das parcelas antecipadas.
+              </p>
+            </div>
           </>
         )}
 
-        <div className="rounded-lg border border-border p-3 text-sm flex justify-between">
-          <span className="text-muted-foreground">{draft.size} selecionada(s)</span>
-          <span className="tabular font-semibold">{fmtMoney(total)}</span>
+        <div className="rounded-lg border border-border p-3 text-sm space-y-1">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">{draft.size} selecionada(s)</span>
+            <span className="tabular">{fmtMoney(total)}</span>
+          </div>
+          {discountValue > 0 && (
+            <div className="flex justify-between text-emerald-700">
+              <span>Desconto</span>
+              <span className="tabular">− {fmtMoney(discountValue)}</span>
+            </div>
+          )}
+          <div className="flex justify-between border-t border-border/60 pt-1 font-semibold">
+            <span>Total antecipado</span>
+            <span className="tabular">{fmtMoney(finalTotal)}</span>
+          </div>
         </div>
 
         <div className="flex gap-2">
           <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button
-            type="button" className="flex-1"
-            onClick={() => { onChange(draft); onOpenChange(false); }}
-          >
+          <Button type="button" className="flex-1" onClick={apply}>
             Aplicar à fatura
           </Button>
         </div>
