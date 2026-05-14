@@ -210,67 +210,82 @@ function LancamentosTab({ initialAction, initialCardId }: { initialAction?: stri
             Nenhuma transação. Clique em <b>Nova</b> para começar.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-xs text-muted-foreground bg-muted/40">
-                <tr>
-                  <th className="text-center px-4 py-3 font-medium w-32 cursor-pointer select-none" onClick={() => toggleSort("date")}>
-                    Data
-                  </th>
-                  <th className="text-left px-5 py-3 font-medium cursor-pointer select-none" onClick={() => toggleSort("description")}>
-                    Descrição
-                  </th>
-                  <th className="text-left px-3 py-3 font-medium">Categoria</th>
-                  <th className="text-left px-3 py-3 font-medium cursor-pointer select-none" onClick={() => toggleSort("method")}>
-                    Meio
-                  </th>
-                  <th className="text-right px-4 py-3 font-medium w-32">Valor</th>
-                  <th className="px-3 py-3 w-12"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {pageRows.map((t: any) => {
-                  const cat = cats.find((c: any) => c.id === t.category_id);
-                  const isInvoicePay = t.payment_method === "invoice";
-                  return (
-                    <tr key={t.id} className="hover:bg-muted/30">
-                      <td className="px-4 py-3 text-center tabular text-muted-foreground">{fmtDate(t.date)}</td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span
-                            className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
-                            style={{ background: (cat?.color ?? (isInvoicePay ? "#0ea5e9" : "#94a3b8")) + "1a", color: cat?.color ?? (isInvoicePay ? "#0ea5e9" : "#94a3b8") }}
-                          >
-                            {isInvoicePay
-                              ? <Receipt className="h-3.5 w-3.5" />
-                              : <CategoryIcon name={cat?.icon} className="h-3.5 w-3.5" />}
-                          </span>
-                          <span className="truncate">{t.description ?? cat?.name ?? "Lançamento"}</span>
-                          {isInvoicePay && (
-                            <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">
-                              Fatura
+          <TooltipProvider delayDuration={400}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs text-muted-foreground bg-muted/40">
+                  <tr>
+                    <th className="text-center px-4 py-3 font-medium w-32 cursor-pointer select-none" onClick={() => toggleSort("date")}>
+                      Data
+                    </th>
+                    <th className="text-left px-5 py-3 font-medium cursor-pointer select-none" onClick={() => toggleSort("description")}>
+                      Descrição
+                    </th>
+                    <th className="text-left px-3 py-3 font-medium">Categoria</th>
+                    <th className="text-left px-3 py-3 font-medium cursor-pointer select-none" onClick={() => toggleSort("method")}>
+                      Meio
+                    </th>
+                    <th className="text-right px-4 py-3 font-medium w-32">Valor</th>
+                    <th className="px-3 py-3 w-12"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {pageRows.map((t: any) => {
+                    const cat = cats.find((c: any) => c.id === t.category_id);
+                    const isInvoicePay = t.payment_method === "invoice";
+                    const createdAt = t.created_at ? new Date(t.created_at) : null;
+                    const timeStr = createdAt
+                      ? createdAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+                      : null;
+                    return (
+                      <tr key={t.id} className="hover:bg-muted/30">
+                        <td className="px-4 py-3 text-center tabular text-muted-foreground">
+                          {timeStr ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-help">{fmtDate(t.date)}</span>
+                              </TooltipTrigger>
+                              <TooltipContent>Registrada às {timeStr}</TooltipContent>
+                            </Tooltip>
+                          ) : fmtDate(t.date)}
+                        </td>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span
+                              className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
+                              style={{ background: (cat?.color ?? (isInvoicePay ? "#0ea5e9" : "#94a3b8")) + "1a", color: cat?.color ?? (isInvoicePay ? "#0ea5e9" : "#94a3b8") }}
+                            >
+                              {isInvoicePay
+                                ? <Receipt className="h-3.5 w-3.5" />
+                                : <CategoryIcon name={cat?.icon} className="h-3.5 w-3.5" />}
                             </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 text-muted-foreground">{cat?.name ?? (isInvoicePay ? "Cartão" : "—")}</td>
-                      <td className="px-3 py-3"><MethodBadge method={t.payment_method as PayMethod} /></td>
-                      <td className="px-4 py-3 text-right">
-                        <span className={`tabular font-medium ${t.kind === "income" ? "text-success" : "text-foreground"}`}>
-                          {t.kind === "income" ? "+" : "−"} {fmtMoney(t.amount)}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-right">
-                        <Button variant="ghost" size="sm" onClick={() => remove(t.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                            <span className="truncate">{t.description ?? cat?.name ?? "Lançamento"}</span>
+                            {isInvoicePay && (
+                              <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">
+                                Fatura
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-muted-foreground">{cat?.name ?? (isInvoicePay ? "Cartão" : "—")}</td>
+                        <td className="px-3 py-3"><MethodBadge method={t.payment_method as PayMethod} /></td>
+                        <td className="px-4 py-3 text-right">
+                          <span className={`tabular font-medium ${t.kind === "income" ? "text-success" : "text-foreground"}`}>
+                            {t.kind === "income" ? "+" : "−"} {fmtMoney(t.amount)}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-right">
+                          <Button variant="ghost" size="sm" onClick={() => remove(t.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </TooltipProvider>
         )}
 
         {pageCount > 1 && (
