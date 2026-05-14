@@ -469,7 +469,7 @@ function TxForm({
           <Select value={method} onValueChange={(v) => setMethod(v as PayMethod)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="checking">Conta corrente</SelectItem>
+              <SelectItem value="checking">Débito</SelectItem>
               <SelectItem value="pix">Pix</SelectItem>
               <SelectItem value="cash">Dinheiro</SelectItem>
               <SelectItem value="card">Cartão de crédito</SelectItem>
