@@ -12,7 +12,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, CreditCard as CardIcon, Lock, Trash2, Receipt } from "lucide-react";
+import { Plus, CreditCard as CardIcon, Lock, Trash2, Receipt, Layers } from "lucide-react";
 import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
