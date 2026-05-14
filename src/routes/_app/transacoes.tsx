@@ -588,6 +588,8 @@ function TxForm({
             items={futureInstallments}
             selected={anticipated}
             onChange={setAnticipated}
+            discount={discount}
+            onDiscountChange={setDiscount}
           />
 
           <div className="space-y-2">
