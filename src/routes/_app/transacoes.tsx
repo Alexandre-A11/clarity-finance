@@ -21,6 +21,7 @@ import { CategoryIcon } from "@/components/icon-picker";
 import { CategoryManagerTrigger } from "@/components/category-manager";
 import { DatePicker } from "@/components/date-picker";
 import { NumberedPagination } from "@/components/numbered-pagination";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePrivacy } from "@/lib/privacy-context";
 
 type TxSearch = {
