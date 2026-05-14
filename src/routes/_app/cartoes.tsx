@@ -206,6 +206,20 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
             Ver fatura
           </Button>
         </div>
+
+        {invoiceTotal > 0 && (
+          <div className="mt-3">
+            <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all ${invoiceFullyPaid ? "bg-emerald-500" : "bg-primary"}`}
+                style={{ width: `${Math.min((invoicePaidSum / invoiceTotal) * 100, 100)}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground tabular mt-1">
+              {((invoicePaidSum / invoiceTotal) * 100).toFixed(0)}% pago
+            </p>
+          </div>
+        )}
       </div>
 
       <InvoiceDetailsDialog
