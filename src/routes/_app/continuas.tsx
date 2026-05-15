@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Repeat, CalendarClock, Trash2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Repeat, CalendarClock, Trash2, Landmark, FileText, CreditCard, Zap } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -18,9 +19,23 @@ export const Route = createFileRoute("/_app/continuas")({
   component: ContinuasPage,
 });
 
+type PayMethod = "debito_automatico" | "boleto" | "credito" | "pix";
+
+const PAY_METHODS: { value: PayMethod; label: string; icon: typeof Landmark }[] = [
+  { value: "debito_automatico", label: "Débito Automático", icon: Landmark },
+  { value: "boleto", label: "Boleto", icon: FileText },
+  { value: "credito", label: "Cartão de Crédito", icon: CreditCard },
+  { value: "pix", label: "Pix", icon: Zap },
+];
+
+function payMethodMeta(m: PayMethod) {
+  return PAY_METHODS.find((p) => p.value === m) ?? PAY_METHODS[1];
+}
+
 function ContinuasPage() {
   const { user } = useAuth();
   const { data: items } = useRealtimeQuery("ongoing_expenses", user?.id);
+  const { data: cards } = useRealtimeQuery("credit_cards", user?.id);
 
   const subscriptions = items.filter((i: any) => i.kind === "subscription");
   const installments = items.filter((i: any) => i.kind !== "subscription");
@@ -62,12 +77,13 @@ function ContinuasPage() {
             subtitle="Streaming, apps, mensalidades — sem data de fim"
             kind="subscription"
             userId={user!.id}
+            cards={cards}
           />
           {subscriptions.length === 0 ? (
             <EmptyCard message="Nenhuma assinatura cadastrada." />
           ) : (
             <div className="grid sm:grid-cols-2 gap-4">
-              {subscriptions.map((it: any) => <SubscriptionCard key={it.id} item={it} />)}
+              {subscriptions.map((it: any) => <SubscriptionCard key={it.id} item={it} cards={cards} />)}
             </div>
           )}
         </TabsContent>
@@ -78,17 +94,31 @@ function ContinuasPage() {
             subtitle="Consórcios, compras parceladas — com data de fim"
             kind="installment"
             userId={user!.id}
+            cards={cards}
           />
           {installments.length === 0 ? (
             <EmptyCard message="Nenhum parcelamento cadastrado." />
           ) : (
             <div className="grid sm:grid-cols-2 gap-4">
-              {installments.map((it: any) => <InstallmentCard key={it.id} item={it} />)}
+              {installments.map((it: any) => <InstallmentCard key={it.id} item={it} cards={cards} />)}
             </div>
           )}
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function PayMethodTag({ item, cards }: { item: any; cards: any[] }) {
+  const meta = payMethodMeta((item.payment_method ?? "boleto") as PayMethod);
+  const Icon = meta.icon;
+  const card = item.credit_card_id ? cards.find((c: any) => c.id === item.credit_card_id) : null;
+  const label = meta.value === "credito" && card ? `Cartão ${card.name}` : meta.label;
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-2 py-0.5 rounded-md bg-secondary text-muted-foreground border border-border">
+      <Icon className="h-3 w-3" />
+      {label}
+    </span>
   );
 }
 
@@ -101,7 +131,7 @@ function EmptyCard({ message }: { message: string }) {
   );
 }
 
-function SectionHeader({ title, subtitle, kind, userId }: { title: string; subtitle: string; kind: "subscription" | "installment"; userId: string }) {
+function SectionHeader({ title, subtitle, kind, userId, cards }: { title: string; subtitle: string; kind: "subscription" | "installment"; userId: string; cards: any[] }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="flex items-end justify-between mb-4">
@@ -117,7 +147,7 @@ function SectionHeader({ title, subtitle, kind, userId }: { title: string; subti
           <DialogHeader>
             <DialogTitle>{kind === "subscription" ? "Nova assinatura" : "Novo parcelamento"}</DialogTitle>
           </DialogHeader>
-          <Form kind={kind} userId={userId} onDone={() => setOpen(false)} />
+          <Form kind={kind} userId={userId} cards={cards} onDone={() => setOpen(false)} />
         </DialogContent>
       </Dialog>
     </div>
@@ -129,14 +159,15 @@ async function removeOne(id: string) {
   if (error) toast.error(error.message); else toast.success("Removido");
 }
 
-function SubscriptionCard({ item }: { item: any }) {
+function SubscriptionCard({ item, cards }: { item: any; cards: any[] }) {
   return (
     <Card className="p-5 shadow-soft">
       <div className="flex items-start justify-between">
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="font-medium">{item.description}</p>
           <p className="text-2xl font-semibold tabular mt-2">{fmtMoney(item.monthly_value)}</p>
           <p className="text-xs text-muted-foreground tabular">por mês{item.due_day ? ` • vence dia ${item.due_day}` : ""}</p>
+          <div className="mt-2"><PayMethodTag item={item} cards={cards} /></div>
         </div>
         <Button variant="ghost" size="sm" onClick={() => removeOne(item.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
       </div>
@@ -144,7 +175,7 @@ function SubscriptionCard({ item }: { item: any }) {
   );
 }
 
-function InstallmentCard({ item }: { item: any }) {
+function InstallmentCard({ item, cards }: { item: any; cards: any[] }) {
   const total = Number(item.total_amount ?? 0);
   const paid = Number(item.paid_amount ?? 0);
   const remaining = total - paid;
@@ -164,6 +195,7 @@ function InstallmentCard({ item }: { item: any }) {
           <p className="text-xs text-muted-foreground tabular mt-2">
             {monthsPaid}/{monthsTotal} pagas • {monthsTotal - monthsPaid} restantes
           </p>
+          <div className="mt-2"><PayMethodTag item={item} cards={cards} /></div>
         </div>
         <Button variant="ghost" size="sm" onClick={() => removeOne(item.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
       </div>
@@ -171,11 +203,13 @@ function InstallmentCard({ item }: { item: any }) {
   );
 }
 
-function Form({ kind, userId, onDone }: { kind: "subscription" | "installment"; userId: string; onDone: () => void }) {
+function Form({ kind, userId, cards, onDone }: { kind: "subscription" | "installment"; userId: string; cards: any[]; onDone: () => void }) {
   const [desc, setDesc] = useState("");
   const [monthly, setMonthly] = useState("");
   const [start, setStart] = useState(new Date().toISOString().slice(0, 10));
   const [dueDay, setDueDay] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PayMethod>("boleto");
+  const [creditCardId, setCreditCardId] = useState<string>("");
   // installment-only
   const [total, setTotal] = useState("");
   const [paid, setPaid] = useState("0");
@@ -184,6 +218,10 @@ function Form({ kind, userId, onDone }: { kind: "subscription" | "installment"; 
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (paymentMethod === "credito" && !creditCardId) {
+      toast.error("Selecione o cartão de crédito");
+      return;
+    }
     const payload: any = {
       user_id: userId,
       kind,
@@ -191,6 +229,8 @@ function Form({ kind, userId, onDone }: { kind: "subscription" | "installment"; 
       monthly_value: Number(monthly),
       start_date: start,
       due_day: dueDay ? Number(dueDay) : null,
+      payment_method: paymentMethod,
+      credit_card_id: paymentMethod === "credito" ? creditCardId : null,
     };
     if (kind === "installment") {
       payload.total_amount = Number(total);
@@ -215,6 +255,39 @@ function Form({ kind, userId, onDone }: { kind: "subscription" | "installment"; 
         <div><Label>Valor mensal (R$)</Label><Input type="number" step="0.01" required value={monthly} onChange={(e) => setMonthly(e.target.value)} /></div>
         <div><Label>Vence dia</Label><Input type="number" min="1" max="31" value={dueDay} onChange={(e) => setDueDay(e.target.value)} placeholder="Ex: 10" /></div>
       </div>
+
+      <div>
+        <Label>Forma de pagamento</Label>
+        <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PayMethod)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {PAY_METHODS.map((m) => {
+              const Icon = m.icon;
+              return (
+                <SelectItem key={m.value} value={m.value}>
+                  <span className="inline-flex items-center gap-2"><Icon className="h-3.5 w-3.5" /> {m.label}</span>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {paymentMethod === "credito" && (
+        <div>
+          <Label>Cartão</Label>
+          <Select value={creditCardId} onValueChange={setCreditCardId}>
+            <SelectTrigger><SelectValue placeholder="Selecione um cartão" /></SelectTrigger>
+            <SelectContent>
+              {cards.length === 0 ? (
+                <div className="px-2 py-1.5 text-xs text-muted-foreground">Nenhum cartão cadastrado</div>
+              ) : cards.map((c: any) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {kind === "installment" && (
         <>

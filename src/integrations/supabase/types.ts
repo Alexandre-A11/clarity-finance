@@ -294,6 +294,7 @@ export type Database = {
       ongoing_expenses: {
         Row: {
           created_at: string
+          credit_card_id: string | null
           description: string
           due_day: number | null
           id: string
@@ -303,12 +304,14 @@ export type Database = {
           months_total: number | null
           notes: string | null
           paid_amount: number
+          payment_method: Database["public"]["Enums"]["ongoing_payment_method"]
           start_date: string
           total_amount: number | null
           user_id: string
         }
         Insert: {
           created_at?: string
+          credit_card_id?: string | null
           description: string
           due_day?: number | null
           id?: string
@@ -318,12 +321,14 @@ export type Database = {
           months_total?: number | null
           notes?: string | null
           paid_amount?: number
+          payment_method?: Database["public"]["Enums"]["ongoing_payment_method"]
           start_date: string
           total_amount?: number | null
           user_id: string
         }
         Update: {
           created_at?: string
+          credit_card_id?: string | null
           description?: string
           due_day?: number | null
           id?: string
@@ -333,6 +338,7 @@ export type Database = {
           months_total?: number | null
           notes?: string | null
           paid_amount?: number
+          payment_method?: Database["public"]["Enums"]["ongoing_payment_method"]
           start_date?: string
           total_amount?: number | null
           user_id?: string
@@ -584,6 +590,7 @@ export type Database = {
       asset_kind: "stock" | "fii"
       dividend_type: "dividend" | "jcp" | "rendimento"
       ongoing_kind: "subscription" | "installment"
+      ongoing_payment_method: "debito_automatico" | "boleto" | "credito" | "pix"
       payment_method: "checking" | "pix" | "cash" | "card" | "invoice"
       receivable_status: "pending" | "paid" | "overdue"
       tx_kind: "income" | "expense"
@@ -719,6 +726,7 @@ export const Constants = {
       asset_kind: ["stock", "fii"],
       dividend_type: ["dividend", "jcp", "rendimento"],
       ongoing_kind: ["subscription", "installment"],
+      ongoing_payment_method: ["debito_automatico", "boleto", "credito", "pix"],
       payment_method: ["checking", "pix", "cash", "card", "invoice"],
       receivable_status: ["pending", "paid", "overdue"],
       tx_kind: ["income", "expense"],

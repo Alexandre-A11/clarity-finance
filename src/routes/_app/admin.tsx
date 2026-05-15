@@ -56,10 +56,18 @@ function AdminPage() {
     setLoading(true);
     try {
       const data = await listAdminUsers();
+      console.info("[admin] listAdminUsers ok:", Array.isArray(data) ? data.length : 0);
       setProfiles(Array.isArray(data) ? (data as ProfileRow[]) : []);
-    } catch (error) {
-      console.error(error);
-      toast.error("Não foi possível carregar usuários");
+    } catch (error: any) {
+      const status = error?.status ?? error?.response?.status;
+      console.error("[admin] listAdminUsers failed", { status, error });
+      toast.error(
+        status === 401
+          ? "Sessão expirada. Faça login novamente."
+          : status === 403
+            ? "Acesso negado. Você precisa ser administrador."
+            : "Não foi possível carregar usuários",
+      );
       setProfiles([]);
     }
     setLoading(false);
