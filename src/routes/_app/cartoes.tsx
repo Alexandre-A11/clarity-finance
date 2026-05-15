@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { useRealtimeQuery } from "@/lib/data-hooks";
-import { fmtMoney, fmtDate, monthRange } from "@/lib/finance";
+import { fmtMoney, fmtDate } from "@/lib/finance";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, CreditCard as CardIcon, Lock, Trash2, Receipt, Layers } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Plus, CreditCard as CardIcon, Lock, Trash2, Receipt, Layers, ArrowRight } from "lucide-react";
 import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -29,8 +30,13 @@ function CartoesPage() {
   const { user } = useAuth();
   const { data: cards } = useRealtimeQuery("credit_cards", user?.id);
   const { data: txs } = useRealtimeQuery("transactions", user?.id);
-  const { data: installments } = useRealtimeQuery("installment_purchases", user?.id);
   const { hidden } = usePrivacy();
+  const [openCardId, setOpenCardId] = useState<string | null>(null);
+
+  const openCard = useMemo(
+    () => cards.find((c: any) => c.id === openCardId) ?? null,
+    [cards, openCardId],
+  );
 
   return (
     <div className="px-6 md:px-10 py-8 max-w-[1100px] mx-auto">
@@ -38,117 +44,89 @@ function CartoesPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Cartões de crédito</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Limite, fatura e parcelas. Lance gastos e pague faturas em <span className="font-medium text-foreground">Transações → Nova</span>.
+            Toque em um cartão para ver faturas e histórico. Pagamentos são feitos em <span className="font-medium text-foreground">Transações → Nova</span>.
           </p>
         </div>
         <NewCardDialog userId={user!.id} />
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {cards.length === 0 ? (
           <Card className="p-12 text-center sm:col-span-2 lg:col-span-3 shadow-soft">
             <CardIcon className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
             <p className="text-sm text-muted-foreground">Cadastre seu primeiro cartão.</p>
           </Card>
         ) : cards.map((c: any) => (
-          <CardItem key={c.id} card={c} txs={txs} userId={user!.id} hidden={hidden} />
+          <CardSummary
+            key={c.id}
+            card={c}
+            txs={txs}
+            hidden={hidden}
+            onOpen={() => setOpenCardId(c.id)}
+          />
         ))}
       </div>
 
-      {installments.length > 0 && (
-        <div>
-          <h2 className="text-sm font-medium mb-3">Compras parceladas</h2>
-          <div className="grid sm:grid-cols-2 gap-3">
-            {installments.map((p: any) => {
-              const card = cards.find((c: any) => c.id === p.card_id);
-              const purchaseTxs = txs.filter((t: any) => t.installment_purchase_id === p.id);
-              const paidCount = purchaseTxs.filter((t: any) => t.is_paid === true).length;
-              const totalCount = p.installments_total;
-              const remaining = totalCount - paidCount;
-              const monthly = Number(p.total_amount) / totalCount;
-              const progress = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
-              return (
-                <Card key={p.id} className="p-4 shadow-soft">
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">{p.description}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {card?.name ?? "Cartão removido"} · {fmtMoney(monthly)}/mês
-                      </p>
-                    </div>
-                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-2 py-1 rounded-md bg-primary-soft text-primary border border-primary/15 shrink-0">
-                      <Layers className="h-3 w-3" />
-                      Parcela {paidCount} de {totalCount}
-                    </span>
-                  </div>
-                  <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
-                    <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
-                  </div>
-                  <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground tabular">
-                    <span>{remaining} restante{remaining !== 1 ? "s" : ""}</span>
-                    <span>Total {fmtMoney(p.total_amount)}</span>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <CardDetailSheet
+        card={openCard}
+        txs={txs}
+        open={!!openCard}
+        onOpenChange={(o) => !o && setOpenCardId(null)}
+      />
     </div>
   );
 }
 
-function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; userId: string; hidden: boolean }) {
-  void userId;
-  const { start, end } = useMemo(() => monthRange(new Date()), []);
-  const invoiceTxs = useMemo(
-    () => txs.filter((t: any) => t.card_id === c.id && t.date >= start && t.date <= end),
-    [txs, c.id, start, end]
-  );
-  const invoiceTotal = invoiceTxs.reduce((s, t: any) => s + Number(t.amount), 0);
-  const invoicePaidSum = invoiceTxs.filter((t: any) => t.is_paid === true).reduce((s, t: any) => s + Number(t.amount), 0);
-  const invoicePending = invoiceTxs.filter((t: any) => t.is_paid === false).reduce((s, t: any) => s + Number(t.amount), 0);
-  const invoiceFullyPaid = invoiceTxs.length > 0 && invoicePending < 0.01;
+function CardSummary({ card: c, txs, hidden, onOpen }: { card: any; txs: any[]; hidden: boolean; onOpen: () => void }) {
+  const cardTxs = txs.filter((t: any) => t.card_id === c.id);
+  const unpaidTotal = cardTxs.filter((t: any) => t.is_paid === false).reduce((s, t: any) => s + Number(t.amount), 0);
 
-  // REACTIVE LIMIT: used = sum of UNPAID transactions only.
-  // Paying the invoice flips is_paid → true, freeing the limit automatically.
-  const used = txs
-    .filter((t: any) => t.card_id === c.id && t.is_paid === false)
-    .reduce((s, t: any) => s + Number(t.amount), 0);
-  const pct = c.limit_total > 0 ? (used / Number(c.limit_total)) * 100 : 0;
-  const available = Math.max(Number(c.limit_total) - used, 0);
+  // Group unpaid by month → "X faturas em aberto"
+  const openInvoiceMonths = new Set(
+    cardTxs.filter((t: any) => t.is_paid === false).map((t: any) => String(t.date).slice(0, 7)),
+  );
+  const openCount = openInvoiceMonths.size;
 
   const removeCard = async () => {
     const { error } = await supabase.from("credit_cards").delete().eq("id", c.id);
     if (error) toast.error(error.message); else toast.success("Cartão removido");
   };
 
-  const [showInvoice, setShowInvoice] = useState(false);
-
   return (
-    <Card className="p-4 shadow-soft">
-      <div className="mx-auto w-full max-w-[280px]">
-        <CreditCardVisual
-          name={c.name}
-          brand={c.brand}
-          color={c.color}
-          holder={c.card_holder_name}
-          lastFour={c.last_four_digits}
-          hidden={hidden}
-        />
-      </div>
+    <Card className="p-4 shadow-soft group">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-2xl"
+      >
+        <div className="mx-auto w-full max-w-[280px] transition-transform group-hover:-translate-y-0.5">
+          <CreditCardVisual
+            name={c.name}
+            brand={c.brand}
+            color={c.color}
+            holder={c.card_holder_name}
+            lastFour={c.last_four_digits}
+            hidden={hidden}
+          />
+        </div>
+      </button>
 
-      <div className="mt-4 flex items-start justify-between">
-        <div>
-          <p className="text-xs text-muted-foreground">Utilizado</p>
-          <p className="text-2xl font-semibold tabular">{fmtMoney(used)}</p>
-          <p className="text-xs text-muted-foreground tabular">
-            disponível {fmtMoney(available)} de {fmtMoney(c.limit_total)} • {pct.toFixed(0)}%
-          </p>
+      <div className="mt-4 flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          {openCount === 0 ? (
+            <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <Receipt className="h-3 w-3" /> Sem faturas em aberto
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-2 py-1 rounded-md bg-primary-soft text-primary border border-primary/15">
+              <Receipt className="h-3 w-3" />
+              {openCount} fatura{openCount > 1 ? "s" : ""} em aberto · {fmtMoney(unpaidTotal)}
+            </span>
+          )}
         </div>
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
+            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive shrink-0">
               <Trash2 className="h-4 w-4" />
             </Button>
           </AlertDialogTrigger>
@@ -169,121 +147,140 @@ function CardItem({ card: c, txs, userId, hidden }: { card: any; txs: any[]; use
         </AlertDialog>
       </div>
 
-      <div className="h-1.5 bg-secondary rounded-full mt-3 overflow-hidden">
-        <div className="h-full" style={{ width: `${Math.min(pct, 100)}%`, background: pct > 80 ? "var(--destructive)" : "var(--primary)" }} />
-      </div>
-      <p className="text-xs text-muted-foreground mt-3">Fecha dia {c.closing_day} • vence dia {c.due_day}</p>
-
-      <div
-        className={`mt-4 rounded-lg border p-3 ${
-          invoiceFullyPaid
-            ? "border-emerald-200 bg-emerald-50/60"
-            : "border-border bg-muted/30"
-        }`}
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-3 w-full text-xs text-primary hover:underline inline-flex items-center justify-center gap-1"
       >
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className={`text-[11px] uppercase tracking-wider flex items-center gap-1 ${invoiceFullyPaid ? "text-emerald-700" : "text-muted-foreground"}`}>
-              <Receipt className="h-3 w-3" /> {invoiceFullyPaid ? "Fatura paga" : "Fatura do mês"}
-            </p>
-            {invoiceFullyPaid ? (
-              <>
-                <p className="text-lg font-semibold tabular mt-0.5 text-emerald-700">{fmtMoney(0)}</p>
-                <p className="text-xs text-emerald-700/80 tabular">
-                  {invoiceTxs.length} lançamento(s) · pago {fmtMoney(invoicePaidSum)}
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-lg font-semibold tabular mt-0.5">{fmtMoney(invoiceTotal)}</p>
-                <p className="text-xs text-muted-foreground tabular">
-                  {invoiceTxs.length} lançamento{invoiceTxs.length !== 1 ? "s" : ""} · pendente {fmtMoney(invoicePending)}
-                </p>
-              </>
-            )}
-          </div>
-          <Button size="sm" variant="outline" onClick={() => setShowInvoice(true)}>
-            Ver fatura
-          </Button>
-        </div>
-
-        {invoiceTotal > 0 && (
-          <div className="mt-3">
-            <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
-              <div
-                className={`h-full transition-all ${invoiceFullyPaid ? "bg-emerald-500" : "bg-primary"}`}
-                style={{ width: `${Math.min((invoicePaidSum / invoiceTotal) * 100, 100)}%` }}
-              />
-            </div>
-            <p className="text-[10px] text-muted-foreground tabular mt-1">
-              {((invoicePaidSum / invoiceTotal) * 100).toFixed(0)}% pago
-            </p>
-          </div>
-        )}
-      </div>
-
-      <InvoiceDetailsDialog
-        open={showInvoice}
-        onOpenChange={setShowInvoice}
-        card={c}
-        invoiceTxs={invoiceTxs}
-        invoiceTotal={invoiceTotal}
-        invoicePending={invoicePending}
-      />
+        Ver faturas <ArrowRight className="h-3 w-3" />
+      </button>
     </Card>
   );
 }
 
-function InvoiceDetailsDialog({
-  open, onOpenChange, card, invoiceTxs, invoiceTotal, invoicePending,
+function CardDetailSheet({
+  card, txs, open, onOpenChange,
 }: {
-  open: boolean; onOpenChange: (v: boolean) => void;
-  card: any; invoiceTxs: any[]; invoiceTotal: number; invoicePending: number;
+  card: any | null; txs: any[]; open: boolean; onOpenChange: (o: boolean) => void;
 }) {
+  const navigate = useNavigate();
+  if (!card) return null;
+
+  const cardTxs = txs
+    .filter((t: any) => t.card_id === card.id)
+    .sort((a: any, b: any) => String(b.date).localeCompare(String(a.date)));
+
+  // Group by YYYY-MM
+  const groups = new Map<string, any[]>();
+  for (const t of cardTxs) {
+    const key = String(t.date).slice(0, 7);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(t);
+  }
+  const months = Array.from(groups.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+
+  const used = cardTxs.filter((t: any) => t.is_paid === false).reduce((s, t: any) => s + Number(t.amount), 0);
+  const limit = Number(card.limit_total);
+  const available = Math.max(limit - used, 0);
+  const pct = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+
+  const goPay = () => {
+    onOpenChange(false);
+    navigate({ to: "/transacoes", search: { payInvoice: card.id } as any });
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Fatura — {card.name}</DialogTitle></DialogHeader>
-        <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1">
-          <div className="flex justify-between"><span className="text-muted-foreground">Total da fatura</span><span className="tabular font-medium">{fmtMoney(invoiceTotal)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Pendente</span><span className="tabular font-medium">{fmtMoney(invoicePending)}</span></div>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>{card.name}</SheetTitle>
+          <SheetDescription>
+            Fecha dia {card.closing_day} · vence dia {card.due_day}
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="mt-5 rounded-lg border border-border p-4 bg-muted/30">
+          <div className="flex items-baseline justify-between">
+            <p className="text-xs text-muted-foreground">Utilizado</p>
+            <p className="text-xs text-muted-foreground tabular">
+              {fmtMoney(available)} disponível
+            </p>
+          </div>
+          <p className="text-2xl font-semibold tabular mt-1">{fmtMoney(used)}</p>
+          <div className="h-1.5 bg-secondary rounded-full mt-2 overflow-hidden">
+            <div
+              className="h-full"
+              style={{ width: `${pct}%`, background: pct > 80 ? "var(--destructive)" : "var(--primary)" }}
+            />
+          </div>
         </div>
-        {invoiceTxs.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">Nenhum lançamento neste mês.</p>
-        ) : (
-          <ul className="divide-y divide-border text-sm">
-            {invoiceTxs.map((t: any) => (
-              <li key={t.id} className="py-2.5 flex items-center justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <p className="truncate">{(t.description ?? "Lançamento").replace(/\s*\(\d+\/\d+\)\s*$/, "")}</p>
-                    {t.is_installment && t.installment_index && (
-                      <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-primary-soft text-primary border border-primary/15 shrink-0">
-                        <Layers className="h-2.5 w-2.5" />
-                        Parcela {t.installment_index}
-                      </span>
-                    )}
-                    {t.is_paid && (
-                      <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
-                        Paga
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{fmtDate(t.date)}</p>
-                </div>
-                <span className="tabular font-medium shrink-0">{fmtMoney(t.amount)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        <p className="text-[11px] text-muted-foreground border-t border-border pt-3">
-          Para pagar a fatura vá em <b>Transações → Nova</b>, selecione <b>Cartão</b> e depois <b>Pagar fatura</b>.
+
+        <div className="mt-4 flex gap-2">
+          <Button onClick={goPay} className="flex-1">
+            <Receipt className="h-4 w-4 mr-1.5" /> Pagar fatura
+          </Button>
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-2">
+          Toda saída de dinheiro acontece em <b>Transações → Nova</b>. Antecipações de parcelas também ficam por lá.
         </p>
-      </DialogContent>
-    </Dialog>
+
+        <div className="mt-6 space-y-5">
+          <h3 className="text-sm font-medium">Histórico de faturas</h3>
+          {months.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              Nenhum lançamento neste cartão.
+            </p>
+          ) : (
+            months.map(([month, items]) => {
+              const total = items.reduce((s, t) => s + Number(t.amount), 0);
+              const pending = items.filter((t) => t.is_paid === false).reduce((s, t) => s + Number(t.amount), 0);
+              const fullyPaid = pending < 0.01 && items.length > 0;
+              const [y, m] = month.split("-");
+              const monthLabel = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+              return (
+                <div key={month} className="rounded-lg border border-border overflow-hidden">
+                  <div className={`px-4 py-2.5 flex items-center justify-between ${fullyPaid ? "bg-emerald-50/60" : "bg-muted/40"}`}>
+                    <div>
+                      <p className="text-sm font-medium capitalize">{monthLabel}</p>
+                      <p className={`text-[11px] tabular ${fullyPaid ? "text-emerald-700" : "text-muted-foreground"}`}>
+                        {items.length} lançamento(s) · {fullyPaid ? "fatura paga" : `pendente ${fmtMoney(pending)}`}
+                      </p>
+                    </div>
+                    <p className="text-sm font-semibold tabular">{fmtMoney(total)}</p>
+                  </div>
+                  <ul className="divide-y divide-border text-sm">
+                    {items.map((t) => (
+                      <li key={t.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <p className="truncate">{(t.description ?? "Lançamento").replace(/\s*\(\d+\/\d+\)\s*$/, "")}</p>
+                            {t.is_installment && t.installment_index && (
+                              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-primary-soft text-primary border border-primary/15 shrink-0">
+                                <Layers className="h-2.5 w-2.5" />
+                                {t.installment_index}
+                              </span>
+                            )}
+                            {t.is_paid && (
+                              <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                                Paga
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">{fmtDate(t.date)}</p>
+                        </div>
+                        <span className="tabular font-medium shrink-0">{fmtMoney(t.amount)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
-
 
 function NewCardDialog({ userId }: { userId: string }) {
   const [open, setOpen] = useState(false);
