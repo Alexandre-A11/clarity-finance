@@ -455,6 +455,7 @@ function TxForm({
       } as any).select().single();
       if (pe || !purchase) { setBusy(false); toast.error(pe?.message ?? "Erro"); return; }
       const dates = installmentDates(date, n);
+      const groupId = (globalThis.crypto as any)?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
       const rows = dates.map((d, i) => ({
         user_id: userId, card_id: cardId, category_id: categoryId || null,
         date: d, amount: monthly, kind: "expense" as const,
@@ -462,6 +463,7 @@ function TxForm({
         is_installment: true, installment_purchase_id: (purchase as any).id,
         installment_index: i + 1, payment_method: "card",
         is_paid: false,
+        purchase_group_id: groupId,
       }));
       const { error: te } = await supabase.from("transactions").insert(rows as any);
       setBusy(false);
