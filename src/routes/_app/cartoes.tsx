@@ -294,153 +294,119 @@ function CardDetailSheet({
           Toda saída de dinheiro acontece em <b>Transações → Nova</b>. Antecipações de parcelas também ficam por lá.
         </p>
 
-        <div className="mt-6 space-y-5">
-          <h3 className="text-sm font-medium">Histórico de faturas</h3>
-          {monthEntries.length === 0 ? (
+        <div className="mt-6 space-y-3">
+          <div className="flex items-baseline justify-between">
+            <h3 className="text-sm font-medium">Compras</h3>
+            <p className="text-[11px] text-muted-foreground">
+              {purchases.filter((p) => !p.fullyPaid).length} ativa{purchases.filter((p) => !p.fullyPaid).length === 1 ? "" : "s"} · {purchases.length} no total
+            </p>
+          </div>
+
+          {purchases.length === 0 ? (
             <p className="text-sm text-muted-foreground py-6 text-center">
-              Nenhum lançamento neste cartão.
+              Nenhuma compra neste cartão.
             </p>
           ) : (
-            monthEntries.map(([month, items]) => {
-              const total = items.reduce((s, t) => s + Number(t.amount), 0);
-              const pending = items.filter((t) => t.is_paid === false).reduce((s, t) => s + Number(t.amount), 0);
-              const fullyPaid = pending < 0.01 && items.length > 0;
-              const [y, m] = month.split("-");
-              const monthLabel = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+            <Accordion type="multiple" className="space-y-2">
+              {purchases.map((p) => {
+                const cat = p.categoryId ? catById.get(p.categoryId) : null;
+                const pct = p.totalCount > 0 ? (p.paidCount / p.totalCount) * 100 : 0;
+                const pending = p.totalCount - p.paidCount;
+                const isMulti = p.totalCount > 1;
 
-              // Build "purchases" — group items in this month by purchase_group_id;
-              // legacy items without group id are treated as standalone purchases.
-              const purchases: Array<{ key: string; tx: any; groupTxs: any[] | null }> = [];
-              const seenGroups = new Set<string>();
-              for (const t of items) {
-                if (t.purchase_group_id) {
-                  if (seenGroups.has(t.purchase_group_id)) continue;
-                  seenGroups.add(t.purchase_group_id);
-                  purchases.push({
-                    key: `g-${t.purchase_group_id}-${month}`,
-                    tx: t,
-                    groupTxs: groupAll.get(t.purchase_group_id) ?? [t],
-                  });
-                } else {
-                  purchases.push({ key: `t-${t.id}`, tx: t, groupTxs: null });
-                }
-              }
-
-              return (
-                <div key={month} className="rounded-lg border border-border overflow-hidden">
-                  <div className={`px-4 py-2.5 flex items-center justify-between ${fullyPaid ? "bg-emerald-50/60" : "bg-muted/40"}`}>
-                    <div>
-                      <p className="text-sm font-medium capitalize">{monthLabel}</p>
-                      <p className={`text-[11px] tabular ${fullyPaid ? "text-emerald-700" : "text-muted-foreground"}`}>
-                        {purchases.length} compra{purchases.length === 1 ? "" : "s"} · {fullyPaid ? "fatura paga" : `pendente ${fmtMoney(pending)}`}
-                      </p>
-                    </div>
-                    <p className="text-sm font-semibold tabular">{fmtMoney(total)}</p>
-                  </div>
-
-                  <Accordion type="multiple" className="px-1">
-                    {purchases.map(({ key, tx, groupTxs }) => {
-                      const cat = tx.category_id ? catById.get(tx.category_id) : null;
-                      const cleanName = (tx.description ?? "Lançamento").replace(/\s*\(\d+\/\d+\)\s*$/, "");
-                      const isGroup = !!groupTxs && groupTxs.length > 1;
-                      const total = groupTxs
-                        ? groupTxs.reduce((s, x) => s + Number(x.amount), 0)
-                        : Number(tx.amount);
-                      const paidCount = groupTxs ? groupTxs.filter((x) => x.is_paid).length : (tx.is_paid ? 1 : 0);
-                      const totalCount = groupTxs ? groupTxs.length : 1;
-                      const firstDate = groupTxs ? groupTxs[0].date : tx.date;
-
-                      const row = (
-                        <div className="flex items-center justify-between gap-3 w-full">
-                          <div className="min-w-0 flex-1 text-left">
-                            <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                              <p className="truncate font-medium">{cleanName}</p>
-                              {isGroup && (
-                                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-primary-soft text-primary border border-primary/15 shrink-0">
-                                  <Layers className="h-2.5 w-2.5" />
-                                  Parcela {tx.installment_index} de {totalCount}
-                                </span>
-                              )}
-                              {!isGroup && tx.is_paid && (
-                                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
-                                  Paga
-                                </span>
-                              )}
-                              {cat && (
-                                <span className="text-[10px] text-muted-foreground shrink-0">· {cat.name}</span>
-                              )}
-                            </div>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">{fmtDate(tx.date)}</p>
+                return (
+                  <AccordionItem
+                    key={p.key}
+                    value={p.key}
+                    className={`rounded-lg border ${p.fullyPaid ? "border-emerald-200 bg-emerald-50/40" : "border-border bg-card"} overflow-hidden`}
+                  >
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline [&>svg]:hidden group">
+                      <div className="flex items-start gap-3 w-full">
+                        <ChevronDown className="h-4 w-4 mt-0.5 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 shrink-0" />
+                        <div className="flex-1 min-w-0 text-left">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium truncate">{p.title}</p>
+                            {cat && (
+                              <span className="text-[10px] text-muted-foreground shrink-0">· {cat.name}</span>
+                            )}
                           </div>
-                          <span className="tabular font-medium shrink-0">{fmtMoney(tx.amount)}</span>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {p.fullyPaid ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                <CheckCircle2 className="h-2.5 w-2.5" /> Quitada
+                              </span>
+                            ) : isMulti ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-primary-soft text-primary border border-primary/15">
+                                <Layers className="h-2.5 w-2.5" />
+                                {pending} parcela{pending === 1 ? "" : "s"} pendente{pending === 1 ? "" : "s"}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+                                Pendente
+                              </span>
+                            )}
+                            {isMulti && (
+                              <span className="text-[10px] text-muted-foreground">
+                                Progresso: {p.paidCount}/{p.totalCount} pagas
+                              </span>
+                            )}
+                          </div>
+                          {isMulti && (
+                            <div className="h-1 bg-secondary rounded-full overflow-hidden mt-2 max-w-[240px]">
+                              <div
+                                className="h-full"
+                                style={{ width: `${pct}%`, background: p.fullyPaid ? "var(--primary)" : "var(--primary)" }}
+                              />
+                            </div>
+                          )}
                         </div>
-                      );
-
-                      if (!isGroup) {
-                        return (
-                          <div key={key} className="px-3 py-2.5 border-b last:border-b-0 border-border">
-                            {row}
-                          </div>
-                        );
-                      }
-
-                      const pct = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
-
-                      return (
-                        <AccordionItem key={key} value={key} className="border-b last:border-b-0">
-                          <AccordionTrigger className="px-3 py-2.5 hover:no-underline [&>svg]:hidden group">
-                            <div className="flex items-center gap-2 w-full">
-                              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 shrink-0" />
-                              <div className="flex-1 min-w-0">{row}</div>
-                            </div>
-                          </AccordionTrigger>
-                          <AccordionContent className="px-3 pb-3">
-                            <div className="rounded-md bg-muted/30 p-3 space-y-2">
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="text-muted-foreground">Compra original</span>
-                                <span className="tabular">{fmtDate(firstDate)}</span>
-                              </div>
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="text-muted-foreground">Valor total</span>
-                                <span className="tabular font-medium">{fmtMoney(total)}</span>
-                              </div>
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="text-muted-foreground">Progresso</span>
-                                <span className="tabular">{paidCount} / {totalCount} pagas</span>
-                              </div>
-                              <div className="h-1 bg-secondary rounded-full overflow-hidden">
-                                <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
-                              </div>
-                              <ul className="mt-2 divide-y divide-border/60 text-xs">
-                                {groupTxs!.map((x) => (
-                                  <li key={x.id} className="py-1.5 flex items-center justify-between gap-2">
-                                    <span className="text-muted-foreground">
-                                      {x.installment_index}/{totalCount} · {fmtDate(x.date)}
-                                    </span>
-                                    <span className="flex items-center gap-2">
-                                      <span className="tabular">{fmtMoney(x.amount)}</span>
-                                      {x.is_paid ? (
-                                        <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                          Paga
-                                        </span>
-                                      ) : (
-                                        <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
-                                          Pendente
-                                        </span>
-                                      )}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      );
-                    })}
-                  </Accordion>
-                </div>
-              );
-            })
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-semibold tabular">{fmtMoney(p.total)}</p>
+                          {!p.fullyPaid && p.remaining > 0 && (
+                            <p className="text-[11px] text-muted-foreground tabular">
+                              Resta {fmtMoney(p.remaining)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <div className="rounded-md bg-muted/30 p-3">
+                        <div className="flex items-center justify-between text-xs mb-2">
+                          <span className="text-muted-foreground">Compra original</span>
+                          <span className="tabular">{fmtDate(p.firstDate)}</span>
+                        </div>
+                        <ul className="divide-y divide-border/60">
+                          {p.installments.map((x: any, idx: number) => {
+                            const num = x.installment_index ?? (idx + 1);
+                            return (
+                              <li key={x.id} className="py-2 flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {x.is_paid ? (
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                                  ) : (
+                                    <Circle className="h-4 w-4 text-muted-foreground shrink-0" />
+                                  )}
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-medium">
+                                      Parcela {num}{isMulti ? ` de ${p.totalCount}` : ""}
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                      Vence {fmtDate(x.due_date ?? x.date)}
+                                    </p>
+                                  </div>
+                                </div>
+                                <span className="tabular text-xs font-medium shrink-0">{fmtMoney(x.amount)}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
           )}
         </div>
       </SheetContent>
