@@ -160,7 +160,7 @@ function CardSummary({ card: c, txs, hidden, onOpen }: { card: any; txs: any[]; 
         onClick={onOpen}
         className="mt-3 w-full text-xs text-primary hover:underline inline-flex items-center justify-center gap-1"
       >
-        Ver faturas <ArrowRight className="h-3 w-3" />
+        Ver compras <ArrowRight className="h-3 w-3" />
       </button>
     </Card>
   );
