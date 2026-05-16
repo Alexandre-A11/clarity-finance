@@ -123,12 +123,12 @@ function CardSummary({ card: c, txs, hidden, onOpen }: { card: any; txs: any[]; 
         <div className="min-w-0">
           {openCount === 0 ? (
             <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <Receipt className="h-3 w-3" /> Sem faturas em aberto
+              <Receipt className="h-3 w-3" /> Sem compras ativas
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-2 py-1 rounded-md bg-primary-soft text-primary border border-primary/15">
-              <Receipt className="h-3 w-3" />
-              {openCount} fatura{openCount > 1 ? "s" : ""} em aberto · {fmtMoney(unpaidTotal)}
+              <Layers className="h-3 w-3" />
+              {openCount} compra{openCount > 1 ? "s" : ""} ativa{openCount > 1 ? "s" : ""} · {fmtMoney(unpaidTotal)}
             </span>
           )}
         </div>
