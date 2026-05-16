@@ -30,6 +30,7 @@ function CartoesPage() {
   const { user } = useAuth();
   const { data: cards } = useRealtimeQuery("credit_cards", user?.id);
   const { data: txs } = useRealtimeQuery("transactions", user?.id);
+  const { data: cats } = useRealtimeQuery("categories", user?.id);
   const { hidden } = usePrivacy();
   const [openCardId, setOpenCardId] = useState<string | null>(null);
 
