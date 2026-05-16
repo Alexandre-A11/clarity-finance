@@ -485,6 +485,7 @@ export type Database = {
           kind: Database["public"]["Enums"]["tx_kind"]
           paid_amount: number | null
           payment_method: Database["public"]["Enums"]["payment_method"]
+          purchase_group_id: string | null
           user_id: string
         }
         Insert: {
@@ -504,6 +505,7 @@ export type Database = {
           kind: Database["public"]["Enums"]["tx_kind"]
           paid_amount?: number | null
           payment_method?: Database["public"]["Enums"]["payment_method"]
+          purchase_group_id?: string | null
           user_id: string
         }
         Update: {
@@ -523,6 +525,7 @@ export type Database = {
           kind?: Database["public"]["Enums"]["tx_kind"]
           paid_amount?: number | null
           payment_method?: Database["public"]["Enums"]["payment_method"]
+          purchase_group_id?: string | null
           user_id?: string
         }
         Relationships: [
