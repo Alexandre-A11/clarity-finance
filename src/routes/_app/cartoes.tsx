@@ -82,13 +82,18 @@ function CartoesPage() {
 
 function CardSummary({ card: c, txs, hidden, onOpen }: { card: any; txs: any[]; hidden: boolean; onOpen: () => void }) {
   const cardTxs = txs.filter((t: any) => t.card_id === c.id);
-  const unpaidTotal = cardTxs.filter((t: any) => t.is_paid === false).reduce((s, t: any) => s + Number(t.amount), 0);
+  const unpaid = cardTxs.filter((t: any) => t.is_paid === false);
+  const unpaidTotal = unpaid.reduce((s, t: any) => s + Number(t.amount), 0);
 
-  // Group unpaid by month → "X faturas em aberto"
-  const openInvoiceMonths = new Set(
-    cardTxs.filter((t: any) => t.is_paid === false).map((t: any) => String(t.date).slice(0, 7)),
-  );
-  const openCount = openInvoiceMonths.size;
+  // Count distinct active purchases (purchase_group_id with pending installments).
+  // Legacy unpaid items without a group are counted individually.
+  const activeGroups = new Set<string>();
+  let standaloneUnpaid = 0;
+  for (const t of unpaid) {
+    if (t.purchase_group_id) activeGroups.add(t.purchase_group_id);
+    else standaloneUnpaid++;
+  }
+  const openCount = activeGroups.size + standaloneUnpaid;
 
   const removeCard = async () => {
     const { error } = await supabase.from("credit_cards").delete().eq("id", c.id);
