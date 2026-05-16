@@ -179,24 +179,75 @@ function CardDetailSheet({
     .filter((t: any) => t.card_id === card.id)
     .sort((a: any, b: any) => String(b.date).localeCompare(String(a.date)));
 
-  // Group by YYYY-MM
-  const months = new Map<string, any[]>();
+  // Build purchase-centric view: group all card transactions by purchase_group_id.
+  // Legacy items without group_id are treated as standalone 1x purchases.
+  type Purchase = {
+    key: string;
+    title: string;
+    categoryId: string | null;
+    firstDate: string;
+    installments: any[]; // sorted by installment_index
+    total: number;
+    paidAmount: number;
+    paidCount: number;
+    totalCount: number;
+    remaining: number;
+    fullyPaid: boolean;
+    createdAt: string;
+  };
+  const purchasesMap = new Map<string, any[]>();
+  const standalone: any[] = [];
   for (const t of cardTxs) {
-    const key = String(t.date).slice(0, 7);
-    if (!months.has(key)) months.set(key, []);
-    months.get(key)!.push(t);
+    if (t.purchase_group_id) {
+      if (!purchasesMap.has(t.purchase_group_id)) purchasesMap.set(t.purchase_group_id, []);
+      purchasesMap.get(t.purchase_group_id)!.push(t);
+    } else {
+      standalone.push(t);
+    }
   }
-  const monthEntries = Array.from(months.entries()).sort((a, b) => b[0].localeCompare(a[0]));
-
-  // All txs by group (across months) — used to compute Parcela X/Y and progress
-  const groupAll = new Map<string, any[]>();
-  for (const t of txs) {
-    if (t.card_id !== card.id) continue;
-    if (!t.purchase_group_id) continue;
-    if (!groupAll.has(t.purchase_group_id)) groupAll.set(t.purchase_group_id, []);
-    groupAll.get(t.purchase_group_id)!.push(t);
+  const purchases: Purchase[] = [];
+  for (const [gid, arr] of purchasesMap.entries()) {
+    arr.sort((a, b) => (a.installment_index ?? 0) - (b.installment_index ?? 0));
+    const total = arr.reduce((s, x) => s + Number(x.amount), 0);
+    const paidCount = arr.filter((x) => x.is_paid).length;
+    const paidAmount = arr.filter((x) => x.is_paid).reduce((s, x) => s + Number(x.amount), 0);
+    const title = (arr[0].description ?? "Compra").replace(/\s*\(\d+\/\d+\)\s*$/, "");
+    purchases.push({
+      key: `g-${gid}`,
+      title,
+      categoryId: arr[0].category_id ?? null,
+      firstDate: arr[0].date,
+      installments: arr,
+      total,
+      paidAmount,
+      paidCount,
+      totalCount: arr.length,
+      remaining: Math.max(total - paidAmount, 0),
+      fullyPaid: paidCount === arr.length,
+      createdAt: arr[0].created_at ?? arr[0].date,
+    });
   }
-  for (const arr of groupAll.values()) arr.sort((a, b) => (a.installment_index ?? 0) - (b.installment_index ?? 0));
+  for (const t of standalone) {
+    purchases.push({
+      key: `t-${t.id}`,
+      title: t.description ?? "Lançamento",
+      categoryId: t.category_id ?? null,
+      firstDate: t.date,
+      installments: [t],
+      total: Number(t.amount),
+      paidAmount: t.is_paid ? Number(t.amount) : 0,
+      paidCount: t.is_paid ? 1 : 0,
+      totalCount: 1,
+      remaining: t.is_paid ? 0 : Number(t.amount),
+      fullyPaid: !!t.is_paid,
+      createdAt: t.created_at ?? t.date,
+    });
+  }
+  // Active first (not fully paid), then by most recent purchase date.
+  purchases.sort((a, b) => {
+    if (a.fullyPaid !== b.fullyPaid) return a.fullyPaid ? 1 : -1;
+    return String(b.firstDate).localeCompare(String(a.firstDate));
+  });
 
   const used = cardTxs.filter((t: any) => t.is_paid === false).reduce((s, t: any) => s + Number(t.amount), 0);
   const limit = Number(card.limit_total);
