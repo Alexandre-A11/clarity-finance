@@ -71,6 +71,7 @@ function CartoesPage() {
       <CardDetailSheet
         card={openCard}
         txs={txs}
+        cats={cats}
         open={!!openCard}
         onOpenChange={(o) => !o && setOpenCardId(null)}
       />
