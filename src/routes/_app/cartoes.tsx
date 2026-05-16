@@ -46,7 +46,7 @@ function CartoesPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Cartões de crédito</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Toque em um cartão para ver faturas e histórico. Pagamentos são feitos em <span className="font-medium text-foreground">Transações → Nova</span>.
+            Toque em um cartão para ver as compras ativas. Pagamentos são feitos em <span className="font-medium text-foreground">Transações → Nova</span>.
           </p>
         </div>
         <NewCardDialog userId={user!.id} />
