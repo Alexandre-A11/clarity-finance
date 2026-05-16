@@ -162,25 +162,36 @@ function CardSummary({ card: c, txs, hidden, onOpen }: { card: any; txs: any[]; 
 }
 
 function CardDetailSheet({
-  card, txs, open, onOpenChange,
+  card, txs, cats, open, onOpenChange,
 }: {
-  card: any | null; txs: any[]; open: boolean; onOpenChange: (o: boolean) => void;
+  card: any | null; txs: any[]; cats: any[]; open: boolean; onOpenChange: (o: boolean) => void;
 }) {
   const navigate = useNavigate();
   if (!card) return null;
 
+  const catById = new Map(cats.map((c: any) => [c.id, c]));
   const cardTxs = txs
     .filter((t: any) => t.card_id === card.id)
     .sort((a: any, b: any) => String(b.date).localeCompare(String(a.date)));
 
   // Group by YYYY-MM
-  const groups = new Map<string, any[]>();
+  const months = new Map<string, any[]>();
   for (const t of cardTxs) {
     const key = String(t.date).slice(0, 7);
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(t);
+    if (!months.has(key)) months.set(key, []);
+    months.get(key)!.push(t);
   }
-  const months = Array.from(groups.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  const monthEntries = Array.from(months.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+
+  // All txs by group (across months) — used to compute Parcela X/Y and progress
+  const groupAll = new Map<string, any[]>();
+  for (const t of txs) {
+    if (t.card_id !== card.id) continue;
+    if (!t.purchase_group_id) continue;
+    if (!groupAll.has(t.purchase_group_id)) groupAll.set(t.purchase_group_id, []);
+    groupAll.get(t.purchase_group_id)!.push(t);
+  }
+  for (const arr of groupAll.values()) arr.sort((a, b) => (a.installment_index ?? 0) - (b.installment_index ?? 0));
 
   const used = cardTxs.filter((t: any) => t.is_paid === false).reduce((s, t: any) => s + Number(t.amount), 0);
   const limit = Number(card.limit_total);
@@ -229,52 +240,148 @@ function CardDetailSheet({
 
         <div className="mt-6 space-y-5">
           <h3 className="text-sm font-medium">Histórico de faturas</h3>
-          {months.length === 0 ? (
+          {monthEntries.length === 0 ? (
             <p className="text-sm text-muted-foreground py-6 text-center">
               Nenhum lançamento neste cartão.
             </p>
           ) : (
-            months.map(([month, items]) => {
+            monthEntries.map(([month, items]) => {
               const total = items.reduce((s, t) => s + Number(t.amount), 0);
               const pending = items.filter((t) => t.is_paid === false).reduce((s, t) => s + Number(t.amount), 0);
               const fullyPaid = pending < 0.01 && items.length > 0;
               const [y, m] = month.split("-");
               const monthLabel = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+              // Build "purchases" — group items in this month by purchase_group_id;
+              // legacy items without group id are treated as standalone purchases.
+              const purchases: Array<{ key: string; tx: any; groupTxs: any[] | null }> = [];
+              const seenGroups = new Set<string>();
+              for (const t of items) {
+                if (t.purchase_group_id) {
+                  if (seenGroups.has(t.purchase_group_id)) continue;
+                  seenGroups.add(t.purchase_group_id);
+                  purchases.push({
+                    key: `g-${t.purchase_group_id}-${month}`,
+                    tx: t,
+                    groupTxs: groupAll.get(t.purchase_group_id) ?? [t],
+                  });
+                } else {
+                  purchases.push({ key: `t-${t.id}`, tx: t, groupTxs: null });
+                }
+              }
+
               return (
                 <div key={month} className="rounded-lg border border-border overflow-hidden">
                   <div className={`px-4 py-2.5 flex items-center justify-between ${fullyPaid ? "bg-emerald-50/60" : "bg-muted/40"}`}>
                     <div>
                       <p className="text-sm font-medium capitalize">{monthLabel}</p>
                       <p className={`text-[11px] tabular ${fullyPaid ? "text-emerald-700" : "text-muted-foreground"}`}>
-                        {items.length} lançamento(s) · {fullyPaid ? "fatura paga" : `pendente ${fmtMoney(pending)}`}
+                        {purchases.length} compra{purchases.length === 1 ? "" : "s"} · {fullyPaid ? "fatura paga" : `pendente ${fmtMoney(pending)}`}
                       </p>
                     </div>
                     <p className="text-sm font-semibold tabular">{fmtMoney(total)}</p>
                   </div>
-                  <ul className="divide-y divide-border text-sm">
-                    {items.map((t) => (
-                      <li key={t.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <p className="truncate">{(t.description ?? "Lançamento").replace(/\s*\(\d+\/\d+\)\s*$/, "")}</p>
-                            {t.is_installment && t.installment_index && (
-                              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-primary-soft text-primary border border-primary/15 shrink-0">
-                                <Layers className="h-2.5 w-2.5" />
-                                {t.installment_index}
-                              </span>
-                            )}
-                            {t.is_paid && (
-                              <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
-                                Paga
-                              </span>
-                            )}
+
+                  <Accordion type="multiple" className="px-1">
+                    {purchases.map(({ key, tx, groupTxs }) => {
+                      const cat = tx.category_id ? catById.get(tx.category_id) : null;
+                      const cleanName = (tx.description ?? "Lançamento").replace(/\s*\(\d+\/\d+\)\s*$/, "");
+                      const isGroup = !!groupTxs && groupTxs.length > 1;
+                      const total = groupTxs
+                        ? groupTxs.reduce((s, x) => s + Number(x.amount), 0)
+                        : Number(tx.amount);
+                      const paidCount = groupTxs ? groupTxs.filter((x) => x.is_paid).length : (tx.is_paid ? 1 : 0);
+                      const totalCount = groupTxs ? groupTxs.length : 1;
+                      const firstDate = groupTxs ? groupTxs[0].date : tx.date;
+
+                      const row = (
+                        <div className="flex items-center justify-between gap-3 w-full">
+                          <div className="min-w-0 flex-1 text-left">
+                            <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                              <p className="truncate font-medium">{cleanName}</p>
+                              {isGroup && (
+                                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-primary-soft text-primary border border-primary/15 shrink-0">
+                                  <Layers className="h-2.5 w-2.5" />
+                                  Parcela {tx.installment_index} de {totalCount}
+                                </span>
+                              )}
+                              {!isGroup && tx.is_paid && (
+                                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                                  Paga
+                                </span>
+                              )}
+                              {cat && (
+                                <span className="text-[10px] text-muted-foreground shrink-0">· {cat.name}</span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">{fmtDate(tx.date)}</p>
                           </div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">{fmtDate(t.date)}</p>
+                          <span className="tabular font-medium shrink-0">{fmtMoney(tx.amount)}</span>
                         </div>
-                        <span className="tabular font-medium shrink-0">{fmtMoney(t.amount)}</span>
-                      </li>
-                    ))}
-                  </ul>
+                      );
+
+                      if (!isGroup) {
+                        return (
+                          <div key={key} className="px-3 py-2.5 border-b last:border-b-0 border-border">
+                            {row}
+                          </div>
+                        );
+                      }
+
+                      const pct = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
+
+                      return (
+                        <AccordionItem key={key} value={key} className="border-b last:border-b-0">
+                          <AccordionTrigger className="px-3 py-2.5 hover:no-underline [&>svg]:hidden group">
+                            <div className="flex items-center gap-2 w-full">
+                              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 shrink-0" />
+                              <div className="flex-1 min-w-0">{row}</div>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="px-3 pb-3">
+                            <div className="rounded-md bg-muted/30 p-3 space-y-2">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground">Compra original</span>
+                                <span className="tabular">{fmtDate(firstDate)}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground">Valor total</span>
+                                <span className="tabular font-medium">{fmtMoney(total)}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground">Progresso</span>
+                                <span className="tabular">{paidCount} / {totalCount} pagas</span>
+                              </div>
+                              <div className="h-1 bg-secondary rounded-full overflow-hidden">
+                                <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                              </div>
+                              <ul className="mt-2 divide-y divide-border/60 text-xs">
+                                {groupTxs!.map((x) => (
+                                  <li key={x.id} className="py-1.5 flex items-center justify-between gap-2">
+                                    <span className="text-muted-foreground">
+                                      {x.installment_index}/{totalCount} · {fmtDate(x.date)}
+                                    </span>
+                                    <span className="flex items-center gap-2">
+                                      <span className="tabular">{fmtMoney(x.amount)}</span>
+                                      {x.is_paid ? (
+                                        <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                          Paga
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+                                          Pendente
+                                        </span>
+                                      )}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
                 </div>
               );
             })
