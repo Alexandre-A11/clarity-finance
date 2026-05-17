@@ -1,0 +1,1 @@
+UPDATE public.transactions SET purchase_group_id = installment_purchase_id WHERE purchase_group_id IS NULL AND installment_purchase_id IS NOT NULL;
