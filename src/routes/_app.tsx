@@ -60,12 +60,12 @@ function AppLayout() {
       {/* Sidebar */}
       <aside className="hidden md:flex w-64 flex-col bg-sidebar border-r border-sidebar-border">
         <div className="px-6 py-6 flex items-center gap-2">
-          <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center">
+          <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center shadow-sm">
             <Wallet className="h-4 w-4 text-primary-foreground" />
           </div>
           <span className="font-semibold tracking-tight">Finanças</span>
         </div>
-        <nav className="flex-1 px-3 space-y-0.5">
+        <nav className="flex-1 px-3 space-y-1">
           {visibleNav.map((item) => {
             const active =
               item.to === "/"
@@ -80,10 +80,10 @@ function AppLayout() {
                   "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
                   active
                     ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                    : "text-sidebar-foreground/75 hover:bg-muted hover:text-sidebar-foreground"
                 )}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className={cn("h-4 w-4", active ? "text-sidebar-accent-foreground" : "text-sidebar-foreground/60")} />
                 {item.label}
               </Link>
             );
@@ -144,7 +144,9 @@ function AppLayout() {
       </nav>
 
       <main className="flex-1 min-w-0 pt-14 md:pt-0 pb-20 md:pb-0">
-        <Outlet />
+        <div className="max-w-6xl mx-auto p-4 md:p-8">
+          <Outlet />
+        </div>
       </main>
     </div>
   );
