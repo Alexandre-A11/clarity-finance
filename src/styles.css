@@ -54,21 +54,21 @@
 
 /* Cloud White — clean SaaS blue */
 :root {
-  --radius: 0.75rem;
-  --background: oklch(0.99 0.003 240);          /* #fafbfc */
-  --foreground: oklch(0.22 0.04 250);           /* slate-900 */
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.04 250);
+  --radius: 0.875rem;
+  --background: oklch(0.975 0.004 240);         /* slate-50 subtle */
+  --foreground: oklch(0.21 0.04 250);           /* slate-900 */
+  --card: oklch(1 0 0);                         /* pure white */
+  --card-foreground: oklch(0.21 0.04 250);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.04 250);
+  --popover-foreground: oklch(0.21 0.04 250);
   --primary: oklch(0.62 0.19 255);              /* #3b82f6 */
   --primary-foreground: oklch(1 0 0);
-  --primary-soft: oklch(0.95 0.04 255);         /* very light blue */
-  --secondary: oklch(0.96 0.008 240);           /* #e8ecf1 */
+  --primary-soft: oklch(0.96 0.03 255);         /* very light blue */
+  --secondary: oklch(0.97 0.006 240);           /* slate-100 */
   --secondary-foreground: oklch(0.3 0.04 250);
-  --muted: oklch(0.97 0.005 240);
-  --muted-foreground: oklch(0.55 0.025 250);    /* #94a3b8 */
-  --accent: oklch(0.95 0.04 255);
+  --muted: oklch(0.975 0.005 240);
+  --muted-foreground: oklch(0.58 0.02 250);     /* slate-500 */
+  --accent: oklch(0.96 0.03 255);
   --accent-foreground: oklch(0.4 0.18 255);
   --destructive: oklch(0.6 0.22 27);
   --destructive-foreground: oklch(1 0 0);
@@ -76,8 +76,8 @@
   --success-foreground: oklch(1 0 0);
   --warning: oklch(0.75 0.15 75);
   --warning-foreground: oklch(0.25 0.05 75);
-  --border: oklch(0.93 0.01 240);
-  --input: oklch(0.93 0.01 240);
+  --border: oklch(0.955 0.006 240);             /* slate-100 */
+  --input: oklch(0.94 0.008 240);
   --ring: oklch(0.62 0.19 255);
   --chart-1: oklch(0.62 0.19 255);
   --chart-2: oklch(0.7 0.16 195);
