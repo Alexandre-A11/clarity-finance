@@ -85,12 +85,13 @@ function CardSummary({ card: c, txs, hidden, onOpen }: { card: any; txs: any[]; 
   const unpaid = cardTxs.filter((t: any) => t.is_paid === false);
   const unpaidTotal = unpaid.reduce((s, t: any) => s + Number(t.amount), 0);
 
-  // Count distinct active purchases (purchase_group_id with pending installments).
-  // Legacy unpaid items without a group are counted individually.
+  // Count distinct active PRODUCTS — group by purchase_group_id (fallback: installment_purchase_id).
+  // Standalone unpaid items (à vista) without any group are each counted as 1 product.
   const activeGroups = new Set<string>();
   let standaloneUnpaid = 0;
   for (const t of unpaid) {
-    if (t.purchase_group_id) activeGroups.add(t.purchase_group_id);
+    const gid = t.purchase_group_id ?? t.installment_purchase_id;
+    if (gid) activeGroups.add(String(gid));
     else standaloneUnpaid++;
   }
   const openCount = activeGroups.size + standaloneUnpaid;
