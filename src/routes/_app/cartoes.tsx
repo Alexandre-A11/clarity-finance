@@ -199,9 +199,11 @@ function CardDetailSheet({
   const purchasesMap = new Map<string, any[]>();
   const standalone: any[] = [];
   for (const t of cardTxs) {
-    if (t.purchase_group_id) {
-      if (!purchasesMap.has(t.purchase_group_id)) purchasesMap.set(t.purchase_group_id, []);
-      purchasesMap.get(t.purchase_group_id)!.push(t);
+    const gid = t.purchase_group_id ?? t.installment_purchase_id;
+    if (gid) {
+      const key = String(gid);
+      if (!purchasesMap.has(key)) purchasesMap.set(key, []);
+      purchasesMap.get(key)!.push(t);
     } else {
       standalone.push(t);
     }
