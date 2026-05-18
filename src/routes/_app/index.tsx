@@ -7,6 +7,7 @@ import { ArrowDownRight, ArrowUpRight, TrendingUp, Wallet, CreditCard as CreditC
 import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { CreditCardVisual } from "@/components/credit-card-visual";
+import { cn } from "@/lib/utils";
 import { usePrivacy } from "@/lib/privacy-context";
 
 export const Route = createFileRoute("/_app/")({
