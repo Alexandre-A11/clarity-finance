@@ -8,6 +8,7 @@ type Props = {
   lastFour?: string | null;
   hidden?: boolean;
   className?: string;
+  compact?: boolean;
 };
 
 // Realistic credit card visual (ISO 7810 ID-1 ratio = 1.586:1).
@@ -19,13 +20,14 @@ export function CreditCardVisual({
   lastFour,
   hidden = false,
   className = "",
+  compact = false,
 }: Props) {
   const digits = lastFour && /^\d{4}$/.test(lastFour) ? lastFour : "0000";
   const masked = hidden ? "••••" : digits;
 
   return (
     <div
-      className={`relative w-full overflow-hidden rounded-2xl text-white shadow-lg ${className}`}
+      className={`relative w-full overflow-hidden rounded-xl text-white shadow-md ${className}`}
       style={{
         aspectRatio: "1.586 / 1",
         background: `linear-gradient(135deg, ${color} 0%, ${color}d9 55%, #00000055 100%)`,
@@ -40,21 +42,21 @@ export function CreditCardVisual({
         }}
       />
 
-      <div className="relative h-full p-3.5 flex flex-col justify-between">
+      <div className={`relative h-full flex flex-col justify-between ${compact ? "p-2" : "p-3.5"}`}>
         {/* Top: name + brand */}
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-white/85 font-medium truncate">
+        <div className="flex items-start justify-between gap-1.5">
+          <p className={`uppercase tracking-[0.16em] text-white/85 font-medium truncate ${compact ? "text-[8px]" : "text-[10px]"}`}>
             {name}
           </p>
-          <CardBrandLogo brand={brand} className="h-5 w-auto shrink-0" />
+          <CardBrandLogo brand={brand} className={`w-auto shrink-0 ${compact ? "h-3" : "h-5"}`} />
         </div>
 
         {/* Middle: chip + digits */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
+        <div className={compact ? "space-y-1" : "space-y-2"}>
+          <div className="flex items-center gap-1.5">
             {/* simulated chip */}
             <div
-              className="h-6 w-8 rounded-md border border-yellow-200/40"
+              className={`rounded-md border border-yellow-200/40 ${compact ? "h-3.5 w-5" : "h-6 w-8"}`}
               style={{
                 background:
                   "linear-gradient(135deg, #d6b65b 0%, #f3e2a5 50%, #b9892d 100%)",
@@ -62,30 +64,25 @@ export function CreditCardVisual({
                   "inset 0 0 0 1px rgba(0,0,0,0.15), inset 0 -2px 3px rgba(0,0,0,0.25)",
               }}
               aria-hidden
-            >
-              <div className="grid grid-cols-3 grid-rows-3 gap-px h-full w-full p-0.5 opacity-60">
-                {Array.from({ length: 9 }).map((_, i) => (
-                  <div key={i} className="bg-yellow-900/40 rounded-[1px]" />
-                ))}
-              </div>
-            </div>
-            {/* contactless icon */}
-            <svg viewBox="0 0 24 24" className="h-4 w-4 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M5 7.5a10 10 0 0 1 0 9" />
-              <path d="M9 9.5a6 6 0 0 1 0 5" />
-              <path d="M13 11.5a2 2 0 0 1 0 1" />
-            </svg>
+            />
+            {!compact && (
+              <svg viewBox="0 0 24 24" className="h-4 w-4 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M5 7.5a10 10 0 0 1 0 9" />
+                <path d="M9 9.5a6 6 0 0 1 0 5" />
+                <path d="M13 11.5a2 2 0 0 1 0 1" />
+              </svg>
+            )}
           </div>
-          <p className="font-mono text-[13px] tracking-[0.12em] tabular whitespace-nowrap">
+          <p className={`font-mono tabular whitespace-nowrap ${compact ? "text-[9px] tracking-[0.06em]" : "text-[13px] tracking-[0.12em]"}`}>
             •••• •••• •••• {masked}
           </p>
         </div>
 
         {/* Bottom: holder */}
-        <div className="flex items-end justify-between gap-2">
+        <div className="flex items-end justify-between gap-1.5">
           <div className="min-w-0 flex-1">
-            <p className="text-[8px] uppercase tracking-[0.18em] text-white/60">Titular</p>
-            <p className="text-[12px] font-medium uppercase tracking-wide truncate">
+            <p className={`uppercase tracking-[0.16em] text-white/60 ${compact ? "text-[6px]" : "text-[8px]"}`}>Titular</p>
+            <p className={`font-medium uppercase tracking-wide truncate ${compact ? "text-[8px]" : "text-[12px]"}`}>
               {hidden ? "•••••• ••••••" : holder?.trim() || "SEU NOME AQUI"}
             </p>
           </div>
