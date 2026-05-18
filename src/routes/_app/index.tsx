@@ -369,15 +369,15 @@ function CategoryDonut({ rows, total }: { rows: { name: string; value: number; c
   const safeRows = rows.filter((r) => Number.isFinite(r.value) && r.value > 0);
   let offset = 0;
   return (
-    <div className="h-52 flex items-center justify-center">
-      <div className="relative h-40 w-40 rounded-full" style={{ background: safeRows.length ? `conic-gradient(${safeRows.map((r) => {
+    <div className="h-40 flex items-center justify-center">
+      <div className="relative h-32 w-32 rounded-full" style={{ background: safeRows.length ? `conic-gradient(${safeRows.map((r) => {
         const pct = total > 0 ? (r.value / total) * 100 : 0;
         const start = offset;
         offset += pct;
         return `${r.color} ${start}% ${offset}%`;
       }).join(", ")})` : "var(--secondary)" }}>
-        <div className="absolute inset-8 rounded-full bg-card flex items-center justify-center text-center">
-          <span className="text-xs text-muted-foreground">{safeRows.length} categorias</span>
+        <div className="absolute inset-6 rounded-full bg-card flex items-center justify-center text-center">
+          <span className="text-[10px] text-muted-foreground">{safeRows.length} cat.</span>
         </div>
       </div>
     </div>
