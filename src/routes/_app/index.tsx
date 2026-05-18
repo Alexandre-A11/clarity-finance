@@ -207,123 +207,135 @@ function Dashboard() {
         <KPI label="A receber" value={fmtMoney(pendingReceivable)} icon={TrendingUp} hint={`${receivables.filter((r: any) => r?.status === "pending").length} pendentes`} />
       </div>
 
-      {/* Próximos Vencimentos */}
-      <Card className="p-6 shadow-soft mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-sm font-medium flex items-center gap-2"><AlertCircle className="h-4 w-4 text-primary" /> Próximos vencimentos</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Contas, faturas e mensalidades nos próximos dias</p>
-          </div>
-        </div>
-        {upcoming.length === 0 ? (
-          <div className="py-6 text-center text-sm text-muted-foreground">Nenhum vencimento próximo. 🎉</div>
-        ) : (
-          <ul className="divide-y divide-border">
-            {upcoming.map((u) => <DueRow key={u.id} item={u} />)}
-          </ul>
-        )}
-      </Card>
-
-      <div className="grid lg:grid-cols-3 gap-4 mb-8">
-        <Card className="p-6 lg:col-span-2 shadow-soft">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-medium">Despesas por categoria</h2>
-            <span className="text-xs text-muted-foreground tabular">{fmtMoney(totals.expense)}</span>
-          </div>
-          {byCategory.length === 0 ? (
-            <EmptyState message="Nenhuma despesa este mês." />
-          ) : (
-            <div className="grid md:grid-cols-2 gap-6 items-center">
-              <CategoryDonut rows={byCategory} total={totals.expense} />
-              <div className="space-y-2">
-                {byCategory.slice(0, 6).map((c) => {
-                  const pct = totals.expense > 0 ? (c.value / totals.expense) * 100 : 0;
-                  return (
-                    <div key={c.name} className="flex items-center gap-3 text-sm">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: c.color }} />
-                      <span className="flex-1 truncate">{c.name}</span>
-                      <span className="tabular text-muted-foreground">{pct.toFixed(0)}%</span>
-                      <span className="tabular font-medium w-24 text-right">{fmtMoney(c.value)}</span>
-                    </div>
-                  );
-                })}
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left column — Cards stacked */}
+        <div className="lg:col-span-4">
+          <Card className="p-6 shadow-soft h-full">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-medium">Meus cartões</h2>
+              <Link to="/cartoes" className="text-xs text-primary hover:underline">Gerenciar →</Link>
             </div>
-          )}
-        </Card>
-
-        <Card className="p-6 shadow-soft">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-medium">Lançamentos recentes</h2>
-          </div>
-          {txs.length === 0 ? (
-            <EmptyState message="Nenhum lançamento ainda." />
-          ) : (
-            <ul className="space-y-3">
-              {txs.slice(0, 6).map((t: any) => {
-                const cat = cats.find((c: any) => c.id === t.category_id);
-                return (
-                  <li key={t.id} className="flex items-center gap-3 text-sm">
-                    <span className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ background: (cat?.color ?? "#94a3b8") + "1a", color: cat?.color ?? "#94a3b8" }}>
-                      <CreditCardIcon className="h-3.5 w-3.5" />
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate">{t.description ?? cat?.name ?? "Lançamento"}</p>
-                      <p className="text-xs text-muted-foreground">{fmtDate(t.date)}</p>
-                    </div>
-                    <span className={`tabular font-medium ${t.kind === "income" ? "text-success" : "text-foreground"}`}>
-                      {t.kind === "income" ? "+" : "−"} {fmtMoney(t.amount)}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          <Link to="/transacoes" className="mt-4 inline-block text-xs text-primary hover:underline">
-            Ver todos →
-          </Link>
-        </Card>
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-medium">Cartões</h2>
-          <Link to="/cartoes" className="text-xs text-primary hover:underline">Gerenciar →</Link>
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {cardsWithUsage.length === 0 ? (
-            <Card className="p-6 shadow-soft sm:col-span-2 lg:col-span-3">
-              <EmptyState message="Cadastre seu primeiro cartão para acompanhar fatura e parcelas." />
-            </Card>
-          ) : (
-            cardsWithUsage.map((c: any) => (
-              <Card key={c.id} className="p-4 shadow-soft">
-                <div className="mx-auto w-full max-w-[240px]">
-                  <CreditCardVisual
-                    name={c.name}
-                    brand={c.brand}
-                    color={c.color}
-                    holder={c.card_holder_name}
-                    lastFour={c.last_four_digits}
-                    hidden={hidden}
-                  />
-                </div>
-                <div className="mt-3 space-y-2">
-                  <div className="flex justify-between text-xs text-muted-foreground tabular">
-                    <span>{fmtMoney(c.used)} usados</span>
-                    <span>de {fmtMoney(c.limit_total)}</span>
-                  </div>
-                  <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
-                    <div
-                      className="h-full transition-all"
-                      style={{ width: `${Math.min(c.pct, 100)}%`, background: c.pct > 80 ? "var(--destructive)" : "var(--primary)" }}
+            {cardsWithUsage.length === 0 ? (
+              <EmptyState message="Cadastre seu primeiro cartão." />
+            ) : (
+              <div className="space-y-5">
+                {cardsWithUsage.map((c: any) => (
+                  <div key={c.id} className="space-y-2.5">
+                    <CreditCardVisual
+                      name={c.name}
+                      brand={c.brand}
+                      color={c.color}
+                      holder={c.card_holder_name}
+                      lastFour={c.last_four_digits}
+                      hidden={hidden}
                     />
+                    <div className="flex justify-between text-xs text-muted-foreground tabular">
+                      <span>{fmtMoney(c.used)} usados</span>
+                      <span>de {fmtMoney(c.limit_total)}</span>
+                    </div>
+                    <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                      <div
+                        className="h-full transition-all"
+                        style={{ width: `${Math.min(c.pct, 100)}%`, background: c.pct > 80 ? "var(--destructive)" : "var(--primary)" }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground tabular">{c.pct.toFixed(0)}% do limite • fecha dia {c.closing_day}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground tabular">{c.pct.toFixed(0)}% do limite • fecha dia {c.closing_day}</p>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* Right column — Chart + lists */}
+        <div className="lg:col-span-8 space-y-6">
+          <Card className="p-6 shadow-soft">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-medium">Despesas por categoria</h2>
+              <span className="text-xs text-muted-foreground tabular">{fmtMoney(totals.expense)}</span>
+            </div>
+            {byCategory.length === 0 ? (
+              <EmptyState message="Nenhuma despesa este mês." />
+            ) : (
+              <div className="grid md:grid-cols-2 gap-6 items-center">
+                <CategoryDonut rows={byCategory} total={totals.expense} />
+                <div className="space-y-2">
+                  {byCategory.slice(0, 6).map((c) => {
+                    const pct = totals.expense > 0 ? (c.value / totals.expense) * 100 : 0;
+                    return (
+                      <div key={c.name} className="flex items-center gap-3 text-sm">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: c.color }} />
+                        <span className="flex-1 truncate">{c.name}</span>
+                        <span className="tabular text-muted-foreground">{pct.toFixed(0)}%</span>
+                        <span className="tabular font-medium w-24 text-right">{fmtMoney(c.value)}</span>
+                      </div>
+                    );
+                  })}
                 </div>
-              </Card>
-            ))
-          )}
+              </div>
+            )}
+          </Card>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {/* Últimos Lançamentos */}
+            <Card className="p-6 shadow-soft">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-medium">Últimos lançamentos</h2>
+                <Link to="/transacoes" className="text-xs text-primary hover:underline">Ver todos →</Link>
+              </div>
+              {txs.length === 0 ? (
+                <EmptyState message="Nenhum lançamento ainda." />
+              ) : (
+                <ul className="divide-y divide-border">
+                  {txs.slice(0, 6).map((t: any) => {
+                    const cat = cats.find((c: any) => c.id === t.category_id);
+                    return (
+                      <li key={t.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{t.description ?? cat?.name ?? "Lançamento"}</p>
+                          <p className="text-xs text-muted-foreground">{cat?.name ?? "Sem categoria"} • {fmtDate(t.date)}</p>
+                        </div>
+                        <span className={`tabular font-medium text-sm w-24 text-right ${t.kind === "income" ? "text-success" : "text-foreground"}`}>
+                          {t.kind === "income" ? "+" : "−"} {fmtMoney(t.amount)}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Card>
+
+            {/* Próximos Vencimentos — mesmo layout */}
+            <Card className="p-6 shadow-soft">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-medium">Próximos vencimentos</h2>
+                <span className="text-xs text-muted-foreground">{upcoming.length} itens</span>
+              </div>
+              {upcoming.length === 0 ? (
+                <EmptyState message="Nenhum vencimento próximo. 🎉" />
+              ) : (
+                <ul className="divide-y divide-border">
+                  {upcoming.slice(0, 6).map((u) => {
+                    const styles = urgencyStyles(u.urgency);
+                    return (
+                      <li key={u.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{u.label}</p>
+                          <p className="text-xs text-muted-foreground">{u.source} • {fmtDate(u.date)}</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="tabular font-medium text-sm">{fmtMoney(u.amount)}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${styles.badgeBg} ${styles.badgeFg} whitespace-nowrap`}>
+                            {urgencyLabel(u.urgency, u.daysLeft)}
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Card>
+          </div>
         </div>
       </div>
     </div>
