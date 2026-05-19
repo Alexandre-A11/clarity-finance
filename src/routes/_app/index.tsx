@@ -20,21 +20,21 @@ function KPI({ label, value, hint, icon: Icon, tone = "default" }: {
   tone?: "default" | "success" | "danger";
 }) {
   return (
-    <Card className="p-3 shadow-soft">
-      <div className="flex items-start justify-between gap-2">
+    <Card className="p-5 shadow-soft">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{label}</p>
-          <p className="mt-1 text-lg font-semibold tabular tracking-tight truncate">{value}</p>
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{label}</p>
+          <p className="mt-1.5 text-2xl font-semibold tabular tracking-tight truncate">{value}</p>
           {hint && (
-            <p className={cn("mt-0.5 text-[11px] tabular truncate",
+            <p className={cn("mt-1 text-xs tabular truncate",
               tone === "success" ? "text-success" : tone === "danger" ? "text-destructive" : "text-muted-foreground"
             )}>
               {hint}
             </p>
           )}
         </div>
-        <div className="h-7 w-7 rounded-md bg-primary-soft flex items-center justify-center shrink-0">
-          <Icon className="h-3.5 w-3.5 text-primary" />
+        <div className="h-9 w-9 rounded-lg bg-primary-soft flex items-center justify-center shrink-0">
+          <Icon className="h-4 w-4 text-primary" />
         </div>
       </div>
     </Card>
