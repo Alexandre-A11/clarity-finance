@@ -144,7 +144,7 @@ function AppLayout() {
       </nav>
 
       <main className="flex-1 min-w-0 pt-14 md:pt-0 pb-20 md:pb-0">
-        <div className="max-w-6xl mx-auto p-3 md:p-4">
+        <div className="max-w-[1400px] mx-auto p-5">
           <Outlet />
         </div>
       </main>
