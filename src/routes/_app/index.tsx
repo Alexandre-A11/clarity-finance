@@ -14,27 +14,36 @@ export const Route = createFileRoute("/_app/")({
   component: Dashboard,
 });
 
-function KPI({ label, value, hint, icon: Icon, tone = "default" }: {
+function KPI({ label, value, hint, icon: Icon, tone = "default", delay = 0 }: {
   label: string; value: string; hint?: string;
   icon: React.ElementType;
   tone?: "default" | "success" | "danger";
+  delay?: number;
 }) {
+  const ring =
+    tone === "success" ? "shadow-[inset_0_0_0_1px_rgba(16,185,129,0.25)]"
+    : tone === "danger" ? "shadow-[inset_0_0_0_1px_rgba(244,63,94,0.25)]"
+    : "";
   return (
-    <Card className="p-5 shadow-soft">
+    <Card className={cn("p-5 fade-up", ring)} style={{ animationDelay: `${delay}ms` } as React.CSSProperties}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{label}</p>
-          <p className="mt-1.5 text-2xl font-semibold tabular tracking-tight truncate">{value}</p>
+          <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">{label}</p>
+          <p className="mt-2 text-3xl font-semibold tabular tracking-tight truncate text-white">{value}</p>
           {hint && (
             <p className={cn("mt-1 text-xs tabular truncate",
-              tone === "success" ? "text-success" : tone === "danger" ? "text-destructive" : "text-muted-foreground"
+              tone === "success" ? "text-emerald-400" : tone === "danger" ? "text-rose-400" : "text-gray-400"
             )}>
               {hint}
             </p>
           )}
         </div>
-        <div className="h-9 w-9 rounded-lg bg-primary-soft flex items-center justify-center shrink-0">
-          <Icon className="h-4 w-4 text-primary" />
+        <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border border-white/5",
+          tone === "success" ? "bg-emerald-500/10 text-emerald-300"
+          : tone === "danger" ? "bg-rose-500/10 text-rose-300"
+          : "bg-white/5 text-purple-300"
+        )}>
+          <Icon className="h-4 w-4" />
         </div>
       </div>
     </Card>
