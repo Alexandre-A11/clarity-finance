@@ -12,7 +12,7 @@ import {
   FileText,
   History,
   LogOut,
-  Wallet,
+  Sparkles,
   ShieldCheck,
   Eye,
   EyeOff,
@@ -55,18 +55,30 @@ function AppLayout() {
     );
   }
 
+  const initials = (user.email ?? "U").slice(0, 2).toUpperCase();
+
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="relative min-h-screen flex">
+      {/* Ambient orbs */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
+        <div className="absolute -top-32 -left-24 h-[420px] w-[420px] rounded-full bg-purple-900/30 blur-[120px]" />
+        <div className="absolute top-1/3 -right-32 h-[480px] w-[480px] rounded-full bg-emerald-900/20 blur-[120px]" />
+        <div className="absolute bottom-0 left-1/3 h-[420px] w-[420px] rounded-full bg-cyan-900/20 blur-[120px]" />
+      </div>
+
       {/* Sidebar */}
-      <aside className="hidden md:flex w-64 flex-col bg-sidebar border-r border-sidebar-border">
-        <div className="px-6 py-6 flex items-center gap-2">
-          <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center shadow-sm">
-            <Wallet className="h-4 w-4 text-primary-foreground" />
+      <aside className="hidden md:flex w-64 flex-col glass-strong m-3 rounded-2xl sticky top-3 h-[calc(100vh-1.5rem)] fade-up">
+        <div className="px-5 py-5 flex items-center gap-2.5">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center logo-glow">
+            <Sparkles className="h-5 w-5 text-white" />
           </div>
-          <span className="font-semibold tracking-tight">Finanças</span>
+          <div className="leading-tight">
+            <p className="font-semibold tracking-tight text-white">Finanças</p>
+            <p className="text-[10px] uppercase tracking-widest text-gray-400">Premium</p>
+          </div>
         </div>
-        <nav className="flex-1 px-3 space-y-1">
-          {visibleNav.map((item) => {
+        <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
+          {visibleNav.map((item, idx) => {
             const active =
               item.to === "/"
                 ? loc.pathname === "/"
@@ -76,35 +88,45 @@ function AppLayout() {
               <Link
                 key={item.to}
                 to={item.to}
+                style={{ animationDelay: `${idx * 40}ms` }}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
+                  "fade-up group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors",
                   active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    : "text-sidebar-foreground/75 hover:bg-muted hover:text-sidebar-foreground"
+                    ? "bg-white/10 text-white font-medium border border-white/10 shadow-[0_0_20px_-8px_rgba(168,85,247,0.6)]"
+                    : "text-gray-400 hover:bg-white/5 hover:text-white",
                 )}
               >
-                <Icon className={cn("h-4 w-4", active ? "text-sidebar-accent-foreground" : "text-sidebar-foreground/60")} />
+                <Icon className={cn("h-4 w-4 transition-colors", active ? "text-purple-300" : "text-gray-500 group-hover:text-white")} />
                 {item.label}
               </Link>
             );
           })}
         </nav>
-        <div className="p-3 border-t border-sidebar-border">
-          <div className="px-3 py-2 mb-2">
-            <p className="text-xs text-muted-foreground">Conectado como</p>
-            <p className="text-sm font-medium truncate">{user.email}</p>
+        <div className="p-3 border-t border-white/5">
+          <div className="flex items-center gap-2.5 px-2 py-2 mb-2">
+            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center text-xs font-semibold text-white">
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-widest text-gray-500">Conectado</p>
+              <p className="text-xs font-medium text-white truncate">{user.email}</p>
+            </div>
           </div>
           <Button
             variant="ghost"
             size="sm"
-            className="w-full justify-start gap-2"
+            className="w-full justify-start gap-2 text-gray-400 hover:text-white hover:bg-white/5"
             onClick={toggle}
-            aria-label={hidden ? "Mostrar valores" : "Ocultar valores"}
           >
             {hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-            {hidden ? "Mostrar valores" : "Ocultar valores"}
+            {hidden ? "Mostrar valores" : "Modo privacidade"}
           </Button>
-          <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={() => signOut()}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2 text-gray-400 hover:text-white hover:bg-white/5"
+            onClick={() => signOut()}
+          >
             <LogOut className="h-4 w-4" />
             Sair
           </Button>
@@ -112,30 +134,30 @@ function AppLayout() {
       </aside>
 
       {/* Mobile top bar */}
-      <header className="md:hidden fixed top-0 left-0 right-0 h-14 bg-card border-b border-border flex items-center justify-between px-4 z-40">
+      <header className="md:hidden fixed top-0 left-0 right-0 h-14 glass-strong flex items-center justify-between px-4 z-40">
         <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
-            <Wallet className="h-3.5 w-3.5 text-primary-foreground" />
+          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center logo-glow">
+            <Sparkles className="h-4 w-4 text-white" />
           </div>
-          <span className="font-semibold text-sm">Finanças</span>
+          <span className="font-semibold text-sm text-white">Finanças</span>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={toggle} aria-label={hidden ? "Mostrar valores" : "Ocultar valores"}>
+          <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white" onClick={toggle}>
             {hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => signOut()}>
+          <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white" onClick={() => signOut()}>
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
       </header>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex justify-around z-40">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 glass-strong flex justify-around z-40">
         {visibleNav.slice(0, 5).map((item) => {
           const active = item.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(item.to);
           const Icon = item.icon;
           return (
-            <Link key={item.to} to={item.to} className={cn("flex-1 flex flex-col items-center py-2 text-[10px]", active ? "text-primary" : "text-muted-foreground")}>
+            <Link key={item.to} to={item.to} className={cn("flex-1 flex flex-col items-center py-2 text-[10px] transition-colors", active ? "text-purple-300" : "text-gray-500")}>
               <Icon className="h-5 w-5 mb-0.5" />
               {item.label.split(" ")[0]}
             </Link>
@@ -144,7 +166,7 @@ function AppLayout() {
       </nav>
 
       <main className="flex-1 min-w-0 pt-14 md:pt-0 pb-20 md:pb-0">
-        <div className="max-w-[1400px] mx-auto p-5">
+        <div className="max-w-[1500px] mx-auto p-4 md:p-6">
           <Outlet />
         </div>
       </main>
