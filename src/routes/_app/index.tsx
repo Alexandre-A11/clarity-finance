@@ -400,20 +400,45 @@ function DueRow({ item }: { item: DueItem }) {
   );
 }
 
-function CategoryDonut({ rows, total }: { rows: { name: string; value: number; color: string }[]; total: number }) {
+function NeonDonut({ rows, total }: { rows: { name: string; value: number; color: string }[]; total: number }) {
   const safeRows = rows.filter((r) => Number.isFinite(r.value) && r.value > 0);
-  let offset = 0;
+  const size = 180;
+  const stroke = 14;
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const gap = 6; // gap em px entre segmentos
+  let acc = 0;
+
   return (
-    <div className="h-40 flex items-center justify-center">
-      <div className="relative h-32 w-32 rounded-full" style={{ background: safeRows.length ? `conic-gradient(${safeRows.map((r) => {
-        const pct = total > 0 ? (r.value / total) * 100 : 0;
-        const start = offset;
-        offset += pct;
-        return `${r.color} ${start}% ${offset}%`;
-      }).join(", ")})` : "var(--secondary)" }}>
-        <div className="absolute inset-6 rounded-full bg-card flex items-center justify-center text-center">
-          <span className="text-[10px] text-muted-foreground">{safeRows.length} cat.</span>
-        </div>
+    <div className="relative mx-auto" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} fill="none" />
+        {safeRows.map((row) => {
+          const pct = total > 0 ? row.value / total : 0;
+          const len = Math.max(circ * pct - gap, 0);
+          const dashArray = `${len} ${circ}`;
+          const dashOffset = -acc;
+          acc += circ * pct;
+          return (
+            <circle
+              key={row.name}
+              cx={size / 2}
+              cy={size / 2}
+              r={r}
+              stroke={row.color}
+              strokeWidth={stroke}
+              strokeLinecap="round"
+              fill="none"
+              strokeDasharray={dashArray}
+              strokeDashoffset={dashOffset}
+              style={{ filter: `drop-shadow(0 0 6px ${row.color})` }}
+            />
+          );
+        })}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-3xl font-semibold text-white tabular">{safeRows.length}</span>
+        <span className="text-[10px] uppercase tracking-widest text-gray-400 mt-0.5">categorias</span>
       </div>
     </div>
   );
@@ -428,21 +453,21 @@ function urgencyLabel(u: DueUrgency, days: number) {
 
 function urgencyStyles(u: DueUrgency) {
   if (u === "overdue" || u === "today") return {
-    bg: "bg-destructive/10", fg: "text-destructive",
-    badgeBg: "bg-destructive/10", badgeFg: "text-destructive",
+    bg: "bg-rose-500/10", fg: "text-rose-300",
+    badgeBg: "bg-rose-500/15 border border-rose-500/30", badgeFg: "text-rose-300",
   };
   if (u === "soon") return {
-    bg: "bg-warning/10", fg: "text-warning-foreground",
-    badgeBg: "bg-warning/10", badgeFg: "text-warning-foreground",
+    bg: "bg-amber-500/10", fg: "text-amber-300",
+    badgeBg: "bg-amber-500/15 border border-amber-500/30", badgeFg: "text-amber-300",
   };
   return {
-    bg: "bg-primary-soft", fg: "text-primary",
-    badgeBg: "bg-secondary", badgeFg: "text-muted-foreground",
+    bg: "bg-white/5", fg: "text-purple-300",
+    badgeBg: "bg-white/5 border border-white/10", badgeFg: "text-gray-300",
   };
 }
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="text-center py-8 text-sm text-muted-foreground">{message}</div>
+    <div className="text-center py-8 text-sm text-gray-500">{message}</div>
   );
 }
