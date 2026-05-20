@@ -27,64 +27,61 @@ export function CreditCardVisual({
 
   return (
     <div
-      className={`relative w-full overflow-hidden rounded-xl text-white shadow-md ${className}`}
+      className={`card-premium relative w-full overflow-hidden rounded-2xl text-white shadow-2xl ring-1 ring-white/10 ${className}`}
       style={{
         aspectRatio: "1.586 / 1",
-        background: `linear-gradient(135deg, ${color} 0%, ${color}d9 55%, #00000055 100%)`,
+        background: `radial-gradient(120% 100% at 0% 0%, ${color}cc 0%, ${color}77 35%, #0a0a0a 75%, #050505 100%)`,
       }}
     >
-      {/* shine */}
+      {/* subtle texture */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-40"
+        className="pointer-events-none absolute inset-0 opacity-50"
         style={{
           background:
-            "radial-gradient(120% 80% at 0% 0%, rgba(255,255,255,0.25), transparent 55%), radial-gradient(60% 60% at 100% 100%, rgba(255,255,255,0.1), transparent 60%)",
+            "radial-gradient(140% 90% at 0% 0%, rgba(255,255,255,0.18), transparent 55%), radial-gradient(60% 60% at 100% 100%, rgba(255,255,255,0.06), transparent 60%)",
         }}
       />
 
-      <div className={`relative h-full flex flex-col justify-between ${compact ? "p-2" : "p-3.5"}`}>
+      <div className={`relative h-full flex flex-col justify-between ${compact ? "p-3" : "p-5"}`}>
         {/* Top: name + brand */}
         <div className="flex items-start justify-between gap-1.5">
-          <p className={`uppercase tracking-[0.16em] text-white/85 font-medium truncate ${compact ? "text-[8px]" : "text-[10px]"}`}>
+          <p className={`uppercase tracking-widest text-white/70 font-medium truncate ${compact ? "text-[9px]" : "text-[10px]"}`}>
             {name}
           </p>
-          <CardBrandLogo brand={brand} className={`w-auto shrink-0 ${compact ? "h-3" : "h-5"}`} />
+          <CardBrandLogo brand={brand} className={`w-auto shrink-0 ${compact ? "h-4" : "h-6"}`} />
         </div>
 
         {/* Middle: chip + digits */}
-        <div className={compact ? "space-y-1" : "space-y-2"}>
-          <div className="flex items-center gap-1.5">
-            {/* simulated chip */}
+        <div className={compact ? "space-y-1.5" : "space-y-3"}>
+          <div className="flex items-center gap-2">
             <div
-              className={`rounded-md border border-yellow-200/40 ${compact ? "h-3.5 w-5" : "h-6 w-8"}`}
+              className={`rounded-md border border-yellow-200/40 ${compact ? "h-4 w-6" : "h-7 w-9"}`}
               style={{
                 background:
                   "linear-gradient(135deg, #d6b65b 0%, #f3e2a5 50%, #b9892d 100%)",
                 boxShadow:
-                  "inset 0 0 0 1px rgba(0,0,0,0.15), inset 0 -2px 3px rgba(0,0,0,0.25)",
+                  "inset 0 0 0 1px rgba(0,0,0,0.18), inset 0 -2px 3px rgba(0,0,0,0.3)",
               }}
               aria-hidden
             />
-            {!compact && (
-              <svg viewBox="0 0 24 24" className="h-4 w-4 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M5 7.5a10 10 0 0 1 0 9" />
-                <path d="M9 9.5a6 6 0 0 1 0 5" />
-                <path d="M13 11.5a2 2 0 0 1 0 1" />
-              </svg>
-            )}
           </div>
-          <p className={`font-mono tabular whitespace-nowrap ${compact ? "text-[9px] tracking-[0.06em]" : "text-[13px] tracking-[0.12em]"}`}>
+          <p className={`font-mono whitespace-nowrap text-white/95 ${compact ? "text-[10px] tracking-widest" : "text-[15px] tracking-widest"}`}>
             •••• •••• •••• {masked}
           </p>
         </div>
 
-        {/* Bottom: holder */}
-        <div className="flex items-end justify-between gap-1.5">
+        {/* Bottom: holder + mastercard mark */}
+        <div className="flex items-end justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <p className={`uppercase tracking-[0.16em] text-white/60 ${compact ? "text-[6px]" : "text-[8px]"}`}>Titular</p>
-            <p className={`font-medium uppercase tracking-wide truncate ${compact ? "text-[8px]" : "text-[12px]"}`}>
+            <p className={`uppercase tracking-widest text-white/50 ${compact ? "text-[7px]" : "text-[9px]"}`}>Titular</p>
+            <p className={`font-medium uppercase tracking-wide truncate ${compact ? "text-[9px]" : "text-[12px]"}`}>
               {hidden ? "•••••• ••••••" : holder?.trim() || "SEU NOME AQUI"}
             </p>
+          </div>
+          {/* subtle mastercard-like mark */}
+          <div className="relative shrink-0" aria-hidden>
+            <div className={`rounded-full bg-red-500/80 ${compact ? "h-3.5 w-3.5" : "h-5 w-5"}`} />
+            <div className={`absolute top-0 -right-2 rounded-full bg-amber-400/70 mix-blend-screen ${compact ? "h-3.5 w-3.5" : "h-5 w-5"}`} />
           </div>
         </div>
       </div>
