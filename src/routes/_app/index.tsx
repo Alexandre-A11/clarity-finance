@@ -254,70 +254,71 @@ function Dashboard() {
             )}
           </Card>
 
-          {/* Atividade recente */}
-          <Card className="p-5 fade-up" style={{ animationDelay: "320ms" } as React.CSSProperties}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-medium text-white uppercase tracking-widest">Atividade recente</h2>
-              <Link to="/transacoes" className="text-xs text-purple-300 hover:text-purple-200 transition-colors">Ver todos →</Link>
-            </div>
-            {txs.length === 0 ? (
-              <EmptyState message="Nenhum lançamento ainda." />
-            ) : (
-              <ul className="space-y-1">
-                {txs.slice(0, 8).map((t: any) => {
-                  const cat = cats.find((c: any) => c.id === t.category_id);
-                  const isIncome = t.kind === "income";
-                  return (
-                    <li key={t.id} className="flex items-center gap-3 py-2 px-2 rounded-xl hover:bg-white/5 transition-colors">
-                      <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center border border-white/5 shrink-0",
-                        isIncome ? "bg-emerald-500/10 text-emerald-300" : "bg-white/5 text-gray-300"
-                      )}>
-                        {isIncome ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate text-white">{t.description ?? cat?.name ?? "Lançamento"}</p>
-                        <p className="text-xs text-gray-400 truncate">{cat?.name ?? "Sem categoria"} • {fmtDate(t.date)}</p>
-                      </div>
-                      <span className={cn("tabular font-semibold text-sm shrink-0", isIncome ? "text-emerald-400" : "text-white")}>
-                        {isIncome ? "+" : "−"} {fmtMoney(t.amount)}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Card>
-
-          {/* Próximos vencimentos */}
-          <Card className="p-5 fade-up" style={{ animationDelay: "400ms" } as React.CSSProperties}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-medium text-white uppercase tracking-widest">Próximos vencimentos</h2>
-              <span className="text-xs text-gray-400">{upcoming.length} itens</span>
-            </div>
-            {upcoming.length === 0 ? (
-              <EmptyState message="Nenhum vencimento próximo. 🎉" />
-            ) : (
-              <ul className="divide-y divide-white/5">
-                {upcoming.slice(0, 8).map((u) => {
-                  const styles = urgencyStyles(u.urgency);
-                  return (
-                    <li key={u.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate text-white">{u.label}</p>
-                        <p className="text-xs text-gray-400 truncate">{u.source} • {fmtDate(u.date)}</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <span className="tabular font-semibold text-sm text-white">{fmtMoney(u.amount)}</span>
-                        <span className={cn("text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap", styles.badgeBg, styles.badgeFg)}>
-                          {urgencyLabel(u.urgency, u.daysLeft)}
+          {/* Atividade + Vencimentos lado a lado */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="p-5 fade-up" style={{ animationDelay: "320ms" } as React.CSSProperties}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-medium text-white uppercase tracking-widest">Atividade recente</h2>
+                <Link to="/transacoes" className="text-xs text-purple-300 hover:text-purple-200 transition-colors">Ver todos →</Link>
+              </div>
+              {txs.length === 0 ? (
+                <EmptyState message="Nenhum lançamento ainda." />
+              ) : (
+                <ul className="space-y-1">
+                  {txs.slice(0, 8).map((t: any) => {
+                    const cat = cats.find((c: any) => c.id === t.category_id);
+                    const isIncome = t.kind === "income";
+                    return (
+                      <li key={t.id} className="flex items-center gap-3 py-2 px-2 rounded-xl hover:bg-white/5 transition-colors">
+                        <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center border border-white/5 shrink-0",
+                          isIncome ? "bg-emerald-500/10 text-emerald-300" : "bg-white/5 text-gray-300"
+                        )}>
+                          {isIncome ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate text-white">{t.description ?? cat?.name ?? "Lançamento"}</p>
+                          <p className="text-xs text-gray-400 truncate">{cat?.name ?? "Sem categoria"} • {fmtDate(t.date)}</p>
+                        </div>
+                        <span className={cn("tabular font-semibold text-sm shrink-0", isIncome ? "text-emerald-400" : "text-white")}>
+                          {isIncome ? "+" : "−"} {fmtMoney(t.amount)}
                         </span>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Card>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Card>
+
+            <Card className="p-5 fade-up" style={{ animationDelay: "400ms" } as React.CSSProperties}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-medium text-white uppercase tracking-widest">Próximos vencimentos</h2>
+                <span className="text-xs text-gray-400">{upcoming.length} itens</span>
+              </div>
+              {upcoming.length === 0 ? (
+                <EmptyState message="Nenhum vencimento próximo. 🎉" />
+              ) : (
+                <ul className="divide-y divide-white/5">
+                  {upcoming.slice(0, 8).map((u) => {
+                    const styles = urgencyStyles(u.urgency);
+                    return (
+                      <li key={u.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate text-white">{u.label}</p>
+                          <p className="text-xs text-gray-400 truncate">{u.source} • {fmtDate(u.date)}</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className="tabular font-semibold text-sm text-white">{fmtMoney(u.amount)}</span>
+                          <span className={cn("text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap", styles.badgeBg, styles.badgeFg)}>
+                            {urgencyLabel(u.urgency, u.daysLeft)}
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Card>
+          </div>
         </div>
 
         {/* Coluna direita — Carteiras */}
