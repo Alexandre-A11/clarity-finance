@@ -404,19 +404,27 @@ function DueRow({ item }: { item: DueItem }) {
 function NeonDonut({ rows, total }: { rows: { name: string; value: number; color: string }[]; total: number }) {
   const safeRows = rows.filter((r) => Number.isFinite(r.value) && r.value > 0);
   const size = 180;
-  const stroke = 14;
+  const stroke = 16;
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
-  const gap = 6; // gap em px entre segmentos
+  const gap = 4; // gap em px entre segmentos (separação nítida)
   let acc = 0;
 
   return (
     <div className="relative mx-auto" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} fill="none" />
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90 block">
+        {/* trilho de fundo */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke="rgba(255,255,255,0.05)"
+          strokeWidth={stroke}
+          fill="none"
+        />
         {safeRows.map((row) => {
           const pct = total > 0 ? row.value / total : 0;
-          const len = Math.max(circ * pct - gap, 0);
+          const len = Math.max(circ * pct - gap, 0.001);
           const dashArray = `${len} ${circ}`;
           const dashOffset = -acc;
           acc += circ * pct;
@@ -428,18 +436,17 @@ function NeonDonut({ rows, total }: { rows: { name: string; value: number; color
               r={r}
               stroke={row.color}
               strokeWidth={stroke}
-              strokeLinecap="round"
+              strokeLinecap="butt"
               fill="none"
               strokeDasharray={dashArray}
               strokeDashoffset={dashOffset}
-              style={{ filter: `drop-shadow(0 0 6px ${row.color})` }}
             />
           );
         })}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-semibold text-white tabular">{safeRows.length}</span>
-        <span className="text-[10px] uppercase tracking-widest text-gray-400 mt-0.5">categorias</span>
+        <span className="text-3xl font-semibold text-white tabular leading-none">{safeRows.length}</span>
+        <span className="text-[10px] uppercase tracking-widest text-gray-400 mt-1.5">categorias</span>
       </div>
     </div>
   );
