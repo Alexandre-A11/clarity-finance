@@ -308,18 +308,18 @@ function Dashboard() {
         )}
       </Card>
 
-      {/* Atividade + Vencimentos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <Card className="p-5 fade-up" style={{ animationDelay: "320ms" } as React.CSSProperties}>
-          <div className="flex items-center justify-between mb-4">
+      {/* Atividade + Vencimentos — preenchem o restante da tela */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:flex-1 lg:min-h-0">
+        <Card className="p-5 fade-up flex flex-col min-h-0" style={{ animationDelay: "320ms" } as React.CSSProperties}>
+          <div className="flex items-center justify-between mb-4 shrink-0">
             <h2 className="text-sm font-medium text-white uppercase tracking-widest">Atividade recente</h2>
             <Link to="/transacoes" className="text-xs text-purple-300 hover:text-purple-200 transition-colors">Ver todos →</Link>
           </div>
           {txs.length === 0 ? (
             <EmptyState message="Nenhum lançamento ainda." />
           ) : (
-            <ul className="space-y-1 max-h-[420px] overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {txs.slice(0, 8).map((t: any) => {
+            <ul className="space-y-1 flex-1 min-h-0 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {txs.map((t: any) => {
                 const cat = cats.find((c: any) => c.id === t.category_id);
                 const isIncome = t.kind === "income";
                 return (
@@ -343,16 +343,16 @@ function Dashboard() {
           )}
         </Card>
 
-        <Card className="p-5 fade-up" style={{ animationDelay: "400ms" } as React.CSSProperties}>
-          <div className="flex items-center justify-between mb-4">
+        <Card className="p-5 fade-up flex flex-col min-h-0" style={{ animationDelay: "400ms" } as React.CSSProperties}>
+          <div className="flex items-center justify-between mb-4 shrink-0">
             <h2 className="text-sm font-medium text-white uppercase tracking-widest">Próximos vencimentos</h2>
             <span className="text-xs text-gray-400">{upcoming.length} itens</span>
           </div>
           {upcoming.length === 0 ? (
             <EmptyState message="Nenhum vencimento próximo. 🎉" />
           ) : (
-            <ul className="divide-y divide-white/5 max-h-[420px] overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {upcoming.slice(0, 8).map((u) => {
+            <ul className="divide-y divide-white/5 flex-1 min-h-0 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {upcoming.map((u) => {
                 const styles = urgencyStyles(u.urgency);
                 return (
                   <li key={u.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
@@ -377,16 +377,6 @@ function Dashboard() {
   );
 }
 
-// Paleta premium para os cartões (foscos / metalizados)
-const PREMIUM_CARD_PALETTE = [
-  "#18181b", // preto fosco
-  "#0f172a", // azul noturno
-  "#064e3b", // esmeralda escuro
-  "#3f3f46", // platina/grafite
-  "#1c1917", // ônix
-  "#1e1b4b", // índigo profundo
-];
-
 // Paleta harmônica para o donut
 const PREMIUM_CHART_PALETTE = [
   "#a855f7",
@@ -396,6 +386,7 @@ const PREMIUM_CHART_PALETTE = [
   "#f43f5e",
   "#6366f1",
 ];
+
 
 function DueRow({ item }: { item: DueItem }) {
   const styles = urgencyStyles(item.urgency);
