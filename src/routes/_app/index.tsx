@@ -232,22 +232,22 @@ function Dashboard() {
             <Link to="/cartoes" className="text-xs text-purple-300 hover:text-purple-200 transition-colors">Ver todos →</Link>
           </div>
           <div
-            className="flex gap-5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex gap-5 overflow-x-auto px-1 py-3 -mx-1 -my-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             style={{ scrollbarWidth: "none" }}
           >
             {cardsWithUsage.map((c: any, idx: number) => {
               const high = c.pct > 80;
-              const premium = PREMIUM_CARD_PALETTE[idx % PREMIUM_CARD_PALETTE.length];
               return (
-                <div key={c.id} className="shrink-0 w-[280px] space-y-2 fade-up" style={{ animationDelay: `${260 + idx * 70}ms` } as React.CSSProperties}>
+                <div key={c.id} className="shrink-0 w-[260px] space-y-2 fade-up" style={{ animationDelay: `${260 + idx * 70}ms` } as React.CSSProperties}>
                   <CreditCardVisual
                     name={c.name}
                     brand={c.brand}
-                    color={premium}
+                    color={c.color}
                     holder={c.card_holder_name}
                     lastFour={c.last_four_digits}
                     hidden={hidden}
                   />
+
                   <div className="flex justify-between text-[10px] uppercase tracking-widest text-gray-400 pt-1">
                     <span>Fatura</span>
                     <span>Limite</span>
