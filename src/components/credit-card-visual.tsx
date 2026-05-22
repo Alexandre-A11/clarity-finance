@@ -11,16 +11,6 @@ type Props = {
   compact?: boolean;
 };
 
-// Hex → rgba helper for layered overlays
-function hexToRgba(hex: string, alpha: number) {
-  const h = hex.replace("#", "");
-  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
-  const num = parseInt(full || "000000", 16);
-  const r = (num >> 16) & 255;
-  const g = (num >> 8) & 255;
-  const b = num & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
 
 // Premium credit card — brushed metal + smoked glass (ISO 7810 ID-1, 1.586:1)
 export function CreditCardVisual({
@@ -36,15 +26,10 @@ export function CreditCardVisual({
   const digits = lastFour && /^\d{4}$/.test(lastFour) ? lastFour : "0000";
   const masked = hidden ? "••••" : digits;
 
-  // Base metal gradient — anchored on the user's color but always pulling toward deep black
-  // for a brushed/smoked feel (works for purple, gold, black, etc.)
-  const tint = color || "#1a1a1a";
-  const metalBase = `
-    radial-gradient(130% 110% at 0% 0%, ${hexToRgba(tint, 0.95)} 0%, ${hexToRgba(tint, 0.45)} 30%, #0a0a0a 70%, #050505 100%),
-    linear-gradient(135deg, ${hexToRgba(tint, 0.35)} 0%, transparent 60%)
-  `;
+  // Cor escolhida pelo usuário como base sólida — overlays adicionam o premium.
+  const baseColor = color || "#1a1a1a";
 
-  // Brushed metal stripes (very fine vertical lines) — using a tiny repeating gradient
+  // Brushed metal stripes (very fine vertical lines)
   const brushed = `repeating-linear-gradient(
     90deg,
     rgba(255,255,255,0.05) 0px,
@@ -61,39 +46,39 @@ export function CreditCardVisual({
       className={`card-premium relative w-full overflow-hidden rounded-2xl text-white shadow-[0_25px_60px_-20px_rgba(0,0,0,0.9)] ring-1 ring-white/10 ${className}`}
       style={{
         aspectRatio: "1.586 / 1",
-        background: metalBase,
+        backgroundColor: baseColor,
       }}
     >
+      {/* Reflexo de luz superior esquerdo (mantém a cor escolhida visível) */}
+      <div
+        className="pointer-events-none absolute inset-0 mix-blend-overlay"
+        style={{
+          background:
+            "radial-gradient(circle at top left, rgba(255,255,255,0.18), transparent 60%)",
+        }}
+        aria-hidden
+      />
+
       {/* Brushed metal layer */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-60 mix-blend-overlay"
+        className="pointer-events-none absolute inset-0 opacity-40 mix-blend-overlay"
         style={{ backgroundImage: brushed }}
         aria-hidden
       />
 
       {/* Fine grain */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-40"
+        className="pointer-events-none absolute inset-0 opacity-30"
         style={{ backgroundImage: grain, backgroundSize: "3px 3px" }}
         aria-hidden
       />
 
-      {/* Smoked-glass diagonal sheen */}
+      {/* Vinheta inferior para profundidade */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "linear-gradient(115deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 22%, transparent 38%, transparent 62%, rgba(255,255,255,0.06) 82%, rgba(255,255,255,0.14) 100%)",
-        }}
-        aria-hidden
-      />
-
-      {/* Soft top highlight to suggest a glass edge */}
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-1/2"
-        style={{
-          background:
-            "radial-gradient(120% 80% at 50% 0%, rgba(255,255,255,0.12), transparent 60%)",
+            "radial-gradient(120% 80% at 50% 120%, rgba(0,0,0,0.45), transparent 60%)",
         }}
         aria-hidden
       />
@@ -103,10 +88,11 @@ export function CreditCardVisual({
         className="pointer-events-none absolute inset-0 rounded-2xl"
         style={{
           boxShadow:
-            "inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.04)",
+            "inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.06)",
         }}
         aria-hidden
       />
+
 
       <div className={`relative h-full flex flex-col justify-between ${compact ? "p-3" : "p-5"}`}>
         {/* Top: name + brand */}
