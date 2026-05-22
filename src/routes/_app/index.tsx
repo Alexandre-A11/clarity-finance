@@ -232,9 +232,10 @@ function Dashboard() {
             <Link to="/cartoes" className="text-xs text-purple-300 hover:text-purple-200 transition-colors">Ver todos →</Link>
           </div>
           <div
-            className="flex gap-5 overflow-x-auto px-1 py-3 -mx-1 -my-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex gap-5 overflow-x-auto px-2 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             style={{ scrollbarWidth: "none" }}
           >
+
             {cardsWithUsage.map((c: any, idx: number) => {
               const high = c.pct > 80;
               return (
