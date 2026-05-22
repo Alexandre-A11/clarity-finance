@@ -457,10 +457,11 @@ function NeonDonut({ rows, total }: { rows: { name: string; value: number; color
           );
         })}
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-semibold text-white tabular leading-none">{safeRows.length}</span>
-        <span className="text-[10px] uppercase tracking-widest text-gray-400 mt-1.5">categorias</span>
+      <div className="absolute inset-0 flex flex-col items-center justify-center px-3 text-center">
+        <span className="text-[10px] uppercase tracking-widest text-gray-400">Total</span>
+        <span className="mt-1 text-lg font-semibold text-white tabular leading-none">{fmtMoney(total)}</span>
       </div>
+
     </div>
   );
 }
