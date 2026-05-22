@@ -11,16 +11,6 @@ type Props = {
   compact?: boolean;
 };
 
-// Hex → rgba helper for layered overlays
-function hexToRgba(hex: string, alpha: number) {
-  const h = hex.replace("#", "");
-  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
-  const num = parseInt(full || "000000", 16);
-  const r = (num >> 16) & 255;
-  const g = (num >> 8) & 255;
-  const b = num & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
 
 // Premium credit card — brushed metal + smoked glass (ISO 7810 ID-1, 1.586:1)
 export function CreditCardVisual({
