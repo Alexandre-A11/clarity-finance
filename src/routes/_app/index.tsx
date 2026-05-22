@@ -202,7 +202,8 @@ function Dashboard() {
   }, [allTxs, cards, txs, ongoing, cats]);
 
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-5 lg:h-[calc(100vh-3rem)] lg:overflow-hidden">
+
       <div className="flex items-end justify-between gap-4 fade-up">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-white">
