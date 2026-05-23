@@ -202,8 +202,7 @@ function Dashboard() {
   }, [allTxs, cards, txs, ongoing, cats]);
 
   return (
-    <div className="flex flex-col gap-5 lg:h-[calc(100vh-3rem)] lg:overflow-hidden">
-
+    <div className="flex flex-col gap-6">
       <div className="flex items-end justify-between gap-4 fade-up">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-white">
@@ -217,161 +216,165 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        <KPI label="Saldo" value={fmtMoney(totals.balance)} icon={Wallet} tone={totals.balance >= 0 ? "success" : "danger"} hint="entradas − saídas" delay={0} />
-        <KPI label="Receitas" value={fmtMoney(totals.income)} icon={ArrowUpRight} tone="success" hint="receitas do mês" delay={80} />
-        <KPI label="Despesas" value={fmtMoney(totals.expense)} icon={ArrowDownRight} tone="danger" hint="despesas do mês" delay={160} />
-      </div>
-
-      {/* Carteiras — faixa horizontal */}
-      {cardsWithUsage.length > 0 && (
-        <Card className="p-5 fade-up" style={{ animationDelay: "200ms" } as React.CSSProperties}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-medium text-white uppercase tracking-widest">Minhas carteiras</h2>
-            <Link to="/cartoes" className="text-xs text-purple-300 hover:text-purple-200 transition-colors">Ver todos →</Link>
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        {/* Coluna principal */}
+        <div className="xl:col-span-8 flex flex-col gap-6 min-w-0">
+          {/* KPIs */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <KPI label="Saldo" value={fmtMoney(totals.balance)} icon={Wallet} tone={totals.balance >= 0 ? "success" : "danger"} hint="entradas − saídas" delay={0} />
+            <KPI label="Receitas" value={fmtMoney(totals.income)} icon={ArrowUpRight} tone="success" hint="receitas do mês" delay={80} />
+            <KPI label="Despesas" value={fmtMoney(totals.expense)} icon={ArrowDownRight} tone="danger" hint="despesas do mês" delay={160} />
           </div>
-          <div
-            className="flex gap-5 overflow-x-auto px-2 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            style={{ scrollbarWidth: "none" }}
-          >
 
-            {cardsWithUsage.map((c: any, idx: number) => {
-              const high = c.pct > 80;
-              return (
-                <div key={c.id} className="shrink-0 w-[260px] space-y-2 fade-up" style={{ animationDelay: `${260 + idx * 70}ms` } as React.CSSProperties}>
-                  <CreditCardVisual
-                    name={c.name}
-                    brand={c.brand}
-                    color={c.color}
-                    holder={c.card_holder_name}
-                    lastFour={c.last_four_digits}
-                    hidden={hidden}
-                  />
-
-                  <div className="flex justify-between text-[10px] uppercase tracking-widest text-gray-400 pt-1">
-                    <span>Fatura</span>
-                    <span>Limite</span>
-                  </div>
-                  <div className="flex justify-between text-xs tabular text-white font-medium">
-                    <span>{fmtMoney(c.used)}</span>
-                    <span className="text-gray-400">{fmtMoney(c.limit_total)}</span>
-                  </div>
-                  <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${Math.min(c.pct, 100)}%`,
-                        background: high
-                          ? "linear-gradient(90deg, #f43f5e, #ef4444)"
-                          : "linear-gradient(90deg, #a855f7, #6366f1)",
-                      }}
-                    />
-                  </div>
-                  <p className="text-[10px] text-gray-500 tabular">{c.pct.toFixed(0)}% usado • fecha dia {c.closing_day}</p>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
-
-      {/* Despesas por categoria — donut */}
-      <Card className="p-5 fade-up" style={{ animationDelay: "240ms" } as React.CSSProperties}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-medium text-white uppercase tracking-widest">Categorias</h2>
-          <span className="text-xs text-gray-400 tabular">{byCategory.length} categorias</span>
-        </div>
-        {byCategory.length === 0 ? (
-          <EmptyState message="Nenhuma despesa este mês." />
-        ) : (
-          <div className="grid md:grid-cols-[200px_1fr] gap-6 items-center">
-            <NeonDonut
-              rows={byCategory.map((r, i) => ({ ...r, color: PREMIUM_CHART_PALETTE[i % PREMIUM_CHART_PALETTE.length] }))}
-              total={totals.expense}
-            />
-            <div className="space-y-2.5">
-              {byCategory.slice(0, 6).map((c, i) => {
-                const color = PREMIUM_CHART_PALETTE[i % PREMIUM_CHART_PALETTE.length];
-                const pct = totals.expense > 0 ? (c.value / totals.expense) * 100 : 0;
-                return (
-                  <div key={c.name} className="flex items-center gap-3 text-xs">
-                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: color }} />
-                    <span className="flex-1 truncate text-gray-200">{c.name}</span>
-                    <span className="tabular text-gray-500 w-10 text-right">{pct.toFixed(0)}%</span>
-                    <span className="tabular font-medium w-24 text-right text-white">{fmtMoney(c.value)}</span>
-                  </div>
-                );
-              })}
+          {/* Categorias */}
+          <Card className="p-5 fade-up" style={{ animationDelay: "240ms" } as React.CSSProperties}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-medium text-white uppercase tracking-widest">Categorias</h2>
+              <span className="text-xs text-gray-400 tabular">{byCategory.length} categorias</span>
             </div>
-          </div>
-        )}
-      </Card>
+            {byCategory.length === 0 ? (
+              <EmptyState message="Nenhuma despesa este mês." />
+            ) : (
+              <div className="grid md:grid-cols-[200px_1fr] gap-6 items-center">
+                <NeonDonut
+                  rows={byCategory.map((r, i) => ({ ...r, color: PREMIUM_CHART_PALETTE[i % PREMIUM_CHART_PALETTE.length] }))}
+                  total={totals.expense}
+                />
+                <div className="space-y-2.5">
+                  {byCategory.slice(0, 6).map((c, i) => {
+                    const color = PREMIUM_CHART_PALETTE[i % PREMIUM_CHART_PALETTE.length];
+                    const pct = totals.expense > 0 ? (c.value / totals.expense) * 100 : 0;
+                    return (
+                      <div key={c.name} className="flex items-center gap-3 text-xs">
+                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: color }} />
+                        <span className="flex-1 truncate text-gray-200">{c.name}</span>
+                        <span className="tabular text-gray-500 w-10 text-right">{pct.toFixed(0)}%</span>
+                        <span className="tabular font-medium w-24 text-right text-white">{fmtMoney(c.value)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </Card>
 
-      {/* Atividade + Vencimentos — preenchem o restante da tela */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:flex-1 lg:min-h-0">
-        <Card className="p-5 fade-up flex flex-col min-h-0" style={{ animationDelay: "320ms" } as React.CSSProperties}>
-          <div className="flex items-center justify-between mb-4 shrink-0">
-            <h2 className="text-sm font-medium text-white uppercase tracking-widest">Atividade recente</h2>
-            <Link to="/transacoes" className="text-xs text-purple-300 hover:text-purple-200 transition-colors">Ver todos →</Link>
-          </div>
-          {txs.length === 0 ? (
-            <EmptyState message="Nenhum lançamento ainda." />
-          ) : (
-            <ul className="space-y-1 flex-1 min-h-0 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {txs.map((t: any) => {
-                const cat = cats.find((c: any) => c.id === t.category_id);
-                const isIncome = t.kind === "income";
-                return (
-                  <li key={t.id} className="flex items-center gap-3 py-2 px-2 rounded-xl hover:bg-white/5 transition-colors">
-                    <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center border border-white/5 shrink-0",
-                      isIncome ? "bg-emerald-500/10 text-emerald-300" : "bg-white/5 text-gray-300"
-                    )}>
-                      {isIncome ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate text-white">{t.description ?? cat?.name ?? "Lançamento"}</p>
-                      <p className="text-xs text-gray-400 truncate">{cat?.name ?? "Sem categoria"} • {fmtDate(t.date)}</p>
-                    </div>
-                    <span className={cn("tabular font-semibold text-sm shrink-0", isIncome ? "text-emerald-400" : "text-white")}>
-                      {isIncome ? "+" : "−"} {fmtMoney(t.amount)}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </Card>
+          {/* Listas lado a lado */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <Card className="p-5 fade-up flex flex-col" style={{ animationDelay: "320ms" } as React.CSSProperties}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-medium text-white uppercase tracking-widest">Atividade recente</h2>
+                <Link to="/transacoes" className="text-xs text-purple-300 hover:text-purple-200 transition-colors">Ver todos →</Link>
+              </div>
+              {txs.length === 0 ? (
+                <EmptyState message="Nenhum lançamento ainda." />
+              ) : (
+                <ul className="space-y-1">
+                  {txs.slice(0, 8).map((t: any) => {
+                    const cat = cats.find((c: any) => c.id === t.category_id);
+                    const isIncome = t.kind === "income";
+                    return (
+                      <li key={t.id} className="flex items-center gap-3 py-2 px-2 rounded-xl hover:bg-white/5 transition-colors">
+                        <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center border border-white/5 shrink-0",
+                          isIncome ? "bg-emerald-500/10 text-emerald-300" : "bg-white/5 text-gray-300"
+                        )}>
+                          {isIncome ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate text-white">{t.description ?? cat?.name ?? "Lançamento"}</p>
+                          <p className="text-xs text-gray-400 truncate">{cat?.name ?? "Sem categoria"} • {fmtDate(t.date)}</p>
+                        </div>
+                        <span className={cn("tabular font-semibold text-sm shrink-0", isIncome ? "text-emerald-400" : "text-white")}>
+                          {isIncome ? "+" : "−"} {fmtMoney(t.amount)}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Card>
 
-        <Card className="p-5 fade-up flex flex-col min-h-0" style={{ animationDelay: "400ms" } as React.CSSProperties}>
-          <div className="flex items-center justify-between mb-4 shrink-0">
-            <h2 className="text-sm font-medium text-white uppercase tracking-widest">Próximos vencimentos</h2>
-            <span className="text-xs text-gray-400">{upcoming.length} itens</span>
+            <Card className="p-5 fade-up flex flex-col" style={{ animationDelay: "400ms" } as React.CSSProperties}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-medium text-white uppercase tracking-widest">Próximos vencimentos</h2>
+                <span className="text-xs text-gray-400">{upcoming.length} itens</span>
+              </div>
+              {upcoming.length === 0 ? (
+                <EmptyState message="Nenhum vencimento próximo. 🎉" />
+              ) : (
+                <ul className="divide-y divide-white/5">
+                  {upcoming.map((u) => {
+                    const styles = urgencyStyles(u.urgency);
+                    return (
+                      <li key={u.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate text-white">{u.label}</p>
+                          <p className="text-xs text-gray-400 truncate">{u.source} • {fmtDate(u.date)}</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className="tabular font-semibold text-sm text-white">{fmtMoney(u.amount)}</span>
+                          <span className={cn("text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap", styles.badgeBg, styles.badgeFg)}>
+                            {urgencyLabel(u.urgency, u.daysLeft)}
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Card>
           </div>
-          {upcoming.length === 0 ? (
-            <EmptyState message="Nenhum vencimento próximo. 🎉" />
-          ) : (
-            <ul className="divide-y divide-white/5 flex-1 min-h-0 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {upcoming.map((u) => {
-                const styles = urgencyStyles(u.urgency);
-                return (
-                  <li key={u.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate text-white">{u.label}</p>
-                      <p className="text-xs text-gray-400 truncate">{u.source} • {fmtDate(u.date)}</p>
+        </div>
+
+        {/* Coluna lateral: cartões */}
+        <div className="xl:col-span-4 min-w-0">
+          <Card className="p-5 fade-up" style={{ animationDelay: "200ms" } as React.CSSProperties}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-medium text-white uppercase tracking-widest">Meus cartões</h2>
+              <Link to="/cartoes" className="text-xs text-purple-300 hover:text-purple-200 transition-colors">Ver todos →</Link>
+            </div>
+            {cardsWithUsage.length === 0 ? (
+              <EmptyState message="Nenhum cartão cadastrado." />
+            ) : (
+              <div className="space-y-5 max-h-[700px] overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {cardsWithUsage.map((c: any, idx: number) => {
+                  const high = c.pct > 80;
+                  return (
+                    <div key={c.id} className="space-y-2 fade-up" style={{ animationDelay: `${260 + idx * 70}ms` } as React.CSSProperties}>
+                      <CreditCardVisual
+                        name={c.name}
+                        brand={c.brand}
+                        color={c.color}
+                        holder={c.card_holder_name}
+                        lastFour={c.last_four_digits}
+                        hidden={hidden}
+                      />
+                      <div className="flex justify-between text-[10px] uppercase tracking-widest text-gray-400 pt-1">
+                        <span>Fatura</span>
+                        <span>Limite</span>
+                      </div>
+                      <div className="flex justify-between text-xs tabular text-white font-medium">
+                        <span>{fmtMoney(c.used)}</span>
+                        <span className="text-gray-400">{fmtMoney(c.limit_total)}</span>
+                      </div>
+                      <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${Math.min(c.pct, 100)}%`,
+                            background: high
+                              ? "linear-gradient(90deg, #f43f5e, #ef4444)"
+                              : "linear-gradient(90deg, #a855f7, #6366f1)",
+                          }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-gray-500 tabular">{c.pct.toFixed(0)}% usado{c.closing_day ? ` • fecha dia ${c.closing_day}` : ""}</p>
                     </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <span className="tabular font-semibold text-sm text-white">{fmtMoney(u.amount)}</span>
-                      <span className={cn("text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap", styles.badgeBg, styles.badgeFg)}>
-                        {urgencyLabel(u.urgency, u.daysLeft)}
-                      </span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </Card>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        </div>
       </div>
     </div>
   );
