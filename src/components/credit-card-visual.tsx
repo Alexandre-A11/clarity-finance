@@ -28,44 +28,45 @@ export function CreditCardVisual({
 
   return (
     <div
-      className={`relative w-full overflow-hidden rounded-xl text-white shadow-md ${className}`}
+      className={`relative overflow-hidden text-white shadow-sm ${compact ? "rounded-lg" : "rounded-xl"} ${className}`}
       style={{
         aspectRatio: "1.586 / 1",
         backgroundColor: baseColor,
+        width: compact ? 210 : undefined,
       }}
     >
       <div className={`relative h-full flex flex-col justify-between ${compact ? "p-3" : "p-5"}`}>
         {/* Top: name + brand */}
         <div className="flex items-start justify-between gap-1.5">
           <p
-            className={`uppercase tracking-[0.2em] text-white/85 font-medium truncate ${compact ? "text-[9px]" : "text-[10px]"}`}
+            className={`uppercase font-medium truncate text-white/85 ${compact ? "text-[8px] tracking-wider" : "text-[10px] tracking-[0.2em]"}`}
           >
             {name}
           </p>
-          <CardBrandLogo brand={brand} className={`w-auto shrink-0 ${compact ? "h-4" : "h-6"}`} />
+          <CardBrandLogo brand={brand} className={`w-auto shrink-2 ${compact ? "h-3" : "h-6"}`} />
         </div>
 
         {/* Middle: chip + digits */}
-        <div className={compact ? "space-y-1.5" : "space-y-3"}>
+        <div className={compact ? "space-y-1" : "space-y-3"}>
           <div
-            className={`rounded-md bg-gradient-to-br from-yellow-200 to-yellow-600/80 ${compact ? "h-4 w-6" : "h-6 w-8"}`}
+            className={`rounded bg-gradient-to-br from-yellow-200 to-yellow-600/80 ${compact ? "h-3 w-5" : "h-6 w-8"}`}
             aria-hidden
           />
           <p
-            className={`font-mono whitespace-nowrap text-white/95 ${compact ? "text-[10px] tracking-widest" : "text-[15px] tracking-[0.18em]"}`}
+            className={`font-mono whitespace-nowrap text-white/95 ${compact ? "text-[10px] tracking-wider" : "text-[15px] tracking-[0.18em]"}`}
           >
-            •••• •••• •••• {masked}
+            •••• {masked}
           </p>
         </div>
 
         {/* Bottom: holder */}
         <div className="flex items-end justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <p className={`uppercase tracking-[0.25em] text-white/60 ${compact ? "text-[7px]" : "text-[9px]"}`}>
+            <p className={`uppercase text-white/50 ${compact ? "text-[6px] tracking-wider" : "text-[9px] tracking-[0.25em]"}`}>
               Titular
             </p>
             <p
-              className={`font-medium uppercase tracking-[0.12em] truncate text-white/95 ${compact ? "text-[9px]" : "text-[12px]"}`}
+              className={`font-medium uppercase truncate text-white/90 ${compact ? "text-[8px] tracking-wide" : "text-[12px] tracking-[0.12em]"}`}
             >
               {hidden ? "•••••• ••••••" : holder?.trim() || "SEU NOME AQUI"}
             </p>

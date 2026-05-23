@@ -335,11 +335,11 @@ function Dashboard() {
             {cardsWithUsage.length === 0 ? (
               <EmptyState message="Nenhum cartão cadastrado." />
             ) : (
-              <div className="space-y-5 max-h-[700px] overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="space-y-4 max-h-[700px] overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {cardsWithUsage.map((c: any, idx: number) => {
                   const high = c.pct > 80;
                   return (
-                    <div key={c.id} className="space-y-2 fade-up" style={{ animationDelay: `${260 + idx * 70}ms` } as React.CSSProperties}>
+                    <div key={c.id} className="space-y-1.5 fade-up" style={{ animationDelay: `${260 + idx * 70}ms` } as React.CSSProperties}>
                       <CreditCardVisual
                         name={c.name}
                         brand={c.brand}
@@ -347,12 +347,14 @@ function Dashboard() {
                         holder={c.card_holder_name}
                         lastFour={c.last_four_digits}
                         hidden={hidden}
+                        compact
+                        className="w-[210px]"
                       />
-                      <div className="flex justify-between text-[10px] uppercase tracking-widest text-gray-400 pt-1">
+                      <div className="flex justify-between text-[9px] uppercase tracking-wider text-gray-400 pt-0.5">
                         <span>Fatura</span>
                         <span>Limite</span>
                       </div>
-                      <div className="flex justify-between text-xs tabular text-white font-medium">
+                      <div className="flex justify-between text-[11px] tabular text-white font-medium">
                         <span>{fmtMoney(c.used)}</span>
                         <span className="text-gray-400">{fmtMoney(c.limit_total)}</span>
                       </div>
@@ -367,7 +369,7 @@ function Dashboard() {
                           }}
                         />
                       </div>
-                      <p className="text-[10px] text-gray-500 tabular">{c.pct.toFixed(0)}% usado{c.closing_day ? ` • fecha dia ${c.closing_day}` : ""}</p>
+                      <p className="text-[9px] text-gray-500 tabular">{c.pct.toFixed(0)}% usado{c.closing_day ? ` • fecha dia ${c.closing_day}` : ""}</p>
                     </div>
                   );
                 })}
