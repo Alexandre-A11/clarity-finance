@@ -30,21 +30,41 @@ export function CreditCardVisual({
   if (compact) {
     return (
       <div
-        className={`relative overflow-hidden rounded-lg border border-white/5 bg-white/[0.03] hover:bg-white/[0.05] transition-colors ${className}`}
-        style={{ borderLeft: `3px solid ${accent}` }}
+        className={`relative overflow-hidden rounded-2xl shadow-lg shadow-black/40 ${className}`}
+        style={{
+          width: 248,
+          aspectRatio: "1.586 / 1",
+          backgroundColor: accent,
+        }}
       >
-        <div className="px-3 py-2.5 flex items-center gap-2.5">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <p className="text-[11px] font-medium text-white truncate uppercase tracking-wide">
-                {name}
-              </p>
-            </div>
-            <p className="text-[10px] text-gray-400 font-mono tabular mt-0.5">
+        {/* Matte: escurece a cor escolhida para combinar com o dark mode */}
+        <div className="absolute inset-0 bg-black/45" aria-hidden />
+        {/* Textura sutil de metal fosco */}
+        <div
+          className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.06),transparent_70%)]"
+          aria-hidden
+        />
+        <div className="relative h-full flex flex-col justify-between p-3.5 text-white">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-[9px] font-medium uppercase tracking-widest text-white/70 truncate">
+              {name}
+            </p>
+            <CardBrandLogo brand={brand} className="h-3 w-auto opacity-70" />
+          </div>
+          <div className="flex items-center gap-2">
+            <div
+              className="h-3.5 w-5 rounded-[3px] bg-gradient-to-br from-yellow-200/70 to-yellow-600/50"
+              aria-hidden
+            />
+            <p className="font-mono text-xs tracking-widest text-white/85 tabular">
               •••• {masked}
             </p>
           </div>
-          <CardBrandLogo brand={brand} className="h-3.5 w-auto shrink-0 opacity-80" />
+          <div className="flex items-end justify-between gap-2">
+            <p className="text-[9px] uppercase tracking-widest text-white/80 truncate font-medium">
+              {hidden ? "•••••• ••••" : holder?.trim() || "TITULAR"}
+            </p>
+          </div>
         </div>
       </div>
     );
