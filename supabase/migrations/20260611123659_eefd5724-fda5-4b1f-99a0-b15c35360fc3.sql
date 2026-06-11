@@ -1,0 +1,2 @@
+ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS needs_review boolean NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_tx_needs_review ON public.transactions(user_id) WHERE needs_review = true;

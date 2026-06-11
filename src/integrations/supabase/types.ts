@@ -524,6 +524,7 @@ export type Database = {
           is_paid: boolean
           is_synced: boolean
           kind: Database["public"]["Enums"]["tx_kind"]
+          needs_review: boolean
           paid_amount: number | null
           payment_method: Database["public"]["Enums"]["payment_method"]
           purchase_group_id: string | null
@@ -546,6 +547,7 @@ export type Database = {
           is_paid?: boolean
           is_synced?: boolean
           kind: Database["public"]["Enums"]["tx_kind"]
+          needs_review?: boolean
           paid_amount?: number | null
           payment_method?: Database["public"]["Enums"]["payment_method"]
           purchase_group_id?: string | null
@@ -568,6 +570,7 @@ export type Database = {
           is_paid?: boolean
           is_synced?: boolean
           kind?: Database["public"]["Enums"]["tx_kind"]
+          needs_review?: boolean
           paid_amount?: number | null
           payment_method?: Database["public"]["Enums"]["payment_method"]
           purchase_group_id?: string | null
