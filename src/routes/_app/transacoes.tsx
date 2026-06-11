@@ -65,7 +65,10 @@ function MethodBadge({ method }: { method?: PayMethod | null }) {
 
 function TransacoesPage() {
   usePrivacy();
+  const { user } = useAuth();
   const search = useSearch({ from: "/_app/transacoes" });
+  const { data: allTxs } = useRealtimeQuery("transactions", user?.id);
+  const reviewCount = (allTxs as any[]).filter((t) => t.needs_review).length;
 
   return (
     <div className="px-6 md:px-10 py-8 max-w-[1200px] mx-auto">
@@ -77,9 +80,17 @@ function TransacoesPage() {
         <CategoryManagerTrigger />
       </div>
 
-      <Tabs defaultValue="lancamentos">
+      <Tabs defaultValue={reviewCount > 0 ? "revisar" : "lancamentos"}>
         <TabsList>
-          <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
+          <TabsTrigger value="lancamentos">Todas</TabsTrigger>
+          <TabsTrigger value="revisar" className="relative gap-2">
+            <Inbox className="h-3.5 w-3.5" /> Para revisar
+            {reviewCount > 0 && (
+              <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold">
+                {reviewCount}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="receber">A receber</TabsTrigger>
         </TabsList>
 
@@ -87,11 +98,92 @@ function TransacoesPage() {
           <LancamentosTab initialAction={search.action} initialCardId={search.cardId} />
         </TabsContent>
 
+        <TabsContent value="revisar" className="mt-6">
+          <RevisarTab />
+        </TabsContent>
+
         <TabsContent value="receber" className="mt-6">
           <ReceberTab />
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function RevisarTab() {
+  const { user } = useAuth();
+  const { data: txs } = useRealtimeQuery("transactions", user?.id, (q) =>
+    q.eq("needs_review", true).order("date", { ascending: false }),
+  );
+  const { data: cats } = useRealtimeQuery("categories", user?.id);
+  const [picks, setPicks] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const approve = async (t: any) => {
+    const catId = picks[t.id] ?? t.category_id;
+    if (!catId) { toast.error("Escolha uma categoria"); return; }
+    setBusy(t.id);
+    const { error } = await supabase
+      .from("transactions")
+      .update({ category_id: catId, needs_review: false })
+      .eq("id", t.id);
+    setBusy(null);
+    if (error) toast.error(error.message);
+    else toast.success("Transação conciliada");
+  };
+
+  if (!txs.length) {
+    return (
+      <Card className="p-12 text-center text-sm text-muted-foreground">
+        <Inbox className="h-8 w-8 mx-auto mb-3 opacity-40" />
+        Nenhuma transação pendente. Inbox limpo!
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="shadow-soft overflow-hidden">
+      <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+        <p className="text-sm font-medium">{txs.length} transação(ões) importada(s) aguardando categorização</p>
+        <span className="text-[11px] text-muted-foreground">Open Finance • Inbox</span>
+      </div>
+      <ul className="divide-y divide-border">
+        {(txs as any[]).map((t) => {
+          const filtered = (cats as any[]).filter((c) => c.kind === (t.kind === "income" ? "income" : "expense"));
+          const selected = picks[t.id] ?? t.category_id ?? "";
+          return (
+            <li key={t.id} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30">
+              <div className="w-20 text-xs text-muted-foreground tabular shrink-0">{fmtDate(t.date)}</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm truncate">{t.description ?? "Lançamento"}</p>
+                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-emerald-300/80 mt-0.5">
+                  <Link2 className="h-3 w-3" /> Banco
+                </span>
+              </div>
+              <div className={`tabular text-sm font-medium w-28 text-right shrink-0 ${t.kind === "income" ? "text-success" : "text-foreground"}`}>
+                {t.kind === "income" ? "+" : "−"} {fmtMoney(t.amount)}
+              </div>
+              <Select value={selected} onValueChange={(v) => setPicks((p) => ({ ...p, [t.id]: v }))}>
+                <SelectTrigger className="h-9 w-[180px] shrink-0"><SelectValue placeholder="Categoria" /></SelectTrigger>
+                <SelectContent>
+                  {filtered.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full" style={{ background: c.color }} />
+                        {c.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button size="sm" onClick={() => approve(t)} disabled={busy === t.id} className="shrink-0">
+                <Check className="h-4 w-4 mr-1" /> Aprovar
+              </Button>
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
   );
 }
 
