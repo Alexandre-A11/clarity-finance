@@ -349,6 +349,37 @@ function Dashboard() {
               </div>
             )}
           </Card>
+
+          {/* Próximos vencimentos */}
+          <Card className="p-5 fade-up flex flex-col" style={{ animationDelay: "400ms" } as React.CSSProperties}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-medium text-white uppercase tracking-widest">Vencimentos</h2>
+              <Link to="/continuas" className="text-xs text-purple-300 hover:text-purple-200 transition-colors">Ver →</Link>
+            </div>
+            {upcoming.length === 0 ? (
+              <EmptyState message="Nenhum vencimento próximo. 🎉" />
+            ) : (
+              <ul className="divide-y divide-white/5">
+                {upcoming.slice(0, 4).map((u) => {
+                  const styles = urgencyStyles(u.urgency);
+                  return (
+                    <li key={u.id} className="flex flex-col gap-1 py-2.5 first:pt-0 last:pb-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium truncate text-white">{u.label}</p>
+                        <span className="tabular font-semibold text-sm text-white shrink-0">{fmtMoney(u.amount)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[11px] text-gray-400 truncate">{fmtDate(u.date)}</p>
+                        <span className={cn("text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap", styles.badgeBg, styles.badgeFg)}>
+                          {urgencyLabel(u.urgency, u.daysLeft)}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Card>
         </div>
       </div>
     </div>
