@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { useRealtimeQuery } from "@/lib/data-hooks";
-import { fmtMoney } from "@/lib/finance";
+import { fmtMoney, fmtDate, fmtElapsedSince } from "@/lib/finance";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -160,6 +160,7 @@ async function removeOne(id: string) {
 }
 
 function SubscriptionCard({ item, cards }: { item: any; cards: any[] }) {
+  const elapsed = fmtElapsedSince(item.start_date);
   return (
     <Card className="p-5 shadow-soft">
       <div className="flex items-start justify-between">
@@ -168,12 +169,18 @@ function SubscriptionCard({ item, cards }: { item: any; cards: any[] }) {
           <p className="text-2xl font-semibold tabular mt-2">{fmtMoney(item.monthly_value)}</p>
           <p className="text-xs text-muted-foreground tabular">por mês{item.due_day ? ` • vence dia ${item.due_day}` : ""}</p>
           <div className="mt-2"><PayMethodTag item={item} cards={cards} /></div>
+          {item.start_date && elapsed && (
+            <p className="text-[10px] text-muted-foreground/70 mt-3">
+              Assinante desde {fmtDate(item.start_date)} • {elapsed}
+            </p>
+          )}
         </div>
         <Button variant="ghost" size="sm" onClick={() => removeOne(item.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
       </div>
     </Card>
   );
 }
+
 
 function InstallmentCard({ item, cards }: { item: any; cards: any[] }) {
   const total = Number(item.total_amount ?? 0);
