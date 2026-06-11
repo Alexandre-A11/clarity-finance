@@ -98,6 +98,34 @@ function SyncPage() {
       setStep("intro");
       return;
     }
+
+    // Simulação Open Finance: importa transações recentes sem categoria,
+    // marcadas para revisão no inbox de conciliação.
+    const today = new Date();
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const back = (n: number) => { const d = new Date(today); d.setDate(d.getDate() - n); return iso(d); };
+    const samples = [
+      { date: back(1), description: `${active.name} • PIX RECEBIDO JOÃO S.`,        amount: 320,    kind: "income"  as const },
+      { date: back(2), description: `${active.name} • COMPRA DEBITO POSTO SHELL`,   amount: 187.4,  kind: "expense" as const },
+      { date: back(3), description: `${active.name} • IFD*IFOOD`,                   amount: 54.9,   kind: "expense" as const },
+      { date: back(5), description: `${active.name} • TARIFA MENSAL`,               amount: 29.9,   kind: "expense" as const },
+      { date: back(6), description: `${active.name} • SUPERMERCADO PAGUE MENOS`,    amount: 246.18, kind: "expense" as const },
+    ];
+    await supabase.from("transactions").insert(
+      samples.map((s) => ({
+        user_id: user.id,
+        date: s.date,
+        amount: s.amount,
+        kind: s.kind,
+        description: s.description,
+        payment_method: "checking" as const,
+        is_paid: true,
+        is_synced: true,
+        needs_review: true,
+        bank_id: active.id,
+      })),
+    );
+
     setStep("success");
     await refresh();
   };
