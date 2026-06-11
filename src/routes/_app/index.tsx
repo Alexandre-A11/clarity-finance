@@ -216,7 +216,7 @@ function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
         {/* Coluna principal */}
         <div className="xl:col-span-9 flex flex-col gap-4 min-w-0">
           {/* KPIs */}
@@ -340,7 +340,7 @@ function Dashboard() {
             {cardsWithUsage.length === 0 ? (
               <EmptyState message="Nenhum cartão cadastrado." />
             ) : (
-              <div className="space-y-2.5">
+              <div className="flex flex-col justify-start gap-4">
                 {cardsWithUsage.map((c: any, idx: number) => {
                   const high = c.pct > 80;
                   return (
