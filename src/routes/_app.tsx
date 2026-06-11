@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Eye,
   EyeOff,
+  Link2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ const NAV = [
   { to: "/historico", label: "Histórico", icon: History, adminOnly: false },
   { to: "/investimentos", label: "Investimentos", icon: TrendingUp, adminOnly: false },
   { to: "/irpf", label: "IRPF", icon: FileText, adminOnly: false },
+  { to: "/sincronizacao", label: "Sincronização", icon: Link2, adminOnly: false },
   { to: "/admin", label: "Administração", icon: ShieldCheck, adminOnly: true },
 ] as const;
 

@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Plus, Trash2, ArrowUpDown,
-  Landmark, Smartphone, Banknote, CreditCard as CardLucide, Receipt, FastForward,
+  Landmark, Smartphone, Banknote, CreditCard as CardLucide, Receipt, FastForward, Link2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -265,6 +265,16 @@ function LancamentosTab({ initialAction, initialCardId }: { initialAction?: stri
                                 Fatura
                               </span>
                             )}
+                            {t.is_synced && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                                    <Link2 className="h-3 w-3" /> Banco
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>Importado via Open Finance — dados oficiais, não editáveis</TooltipContent>
+                              </Tooltip>
+                            )}
                           </div>
                         </td>
                         <td className="px-3 py-3 text-muted-foreground">{cat?.name ?? (isInvoicePay ? "Cartão" : "—")}</td>
@@ -275,9 +285,18 @@ function LancamentosTab({ initialAction, initialCardId }: { initialAction?: stri
                           </span>
                         </td>
                         <td className="px-3 py-3 text-right">
-                          <Button variant="ghost" size="sm" onClick={() => remove(t.id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          {t.is_synced ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex h-8 w-8 items-center justify-center text-muted-foreground/50"><Link2 className="h-3.5 w-3.5" /></span>
+                              </TooltipTrigger>
+                              <TooltipContent>Lançamento oficial do banco — bloqueado para edição</TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <Button variant="ghost" size="sm" onClick={() => remove(t.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </td>
                       </tr>
                     );

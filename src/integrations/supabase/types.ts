@@ -71,6 +71,39 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_connections: {
+        Row: {
+          bank_id: string
+          bank_name: string
+          created_at: string
+          id: string
+          last_sync_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bank_id: string
+          bank_name: string
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bank_id?: string
+          bank_name?: string
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           color: string
@@ -103,6 +136,7 @@ export type Database = {
       }
       credit_cards: {
         Row: {
+          bank_id: string | null
           brand: string | null
           card_holder_name: string | null
           closing_day: number
@@ -110,6 +144,7 @@ export type Database = {
           created_at: string
           due_day: number
           id: string
+          is_synced: boolean
           last_four_digits: string | null
           limit_total: number
           name: string
@@ -117,6 +152,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          bank_id?: string | null
           brand?: string | null
           card_holder_name?: string | null
           closing_day?: number
@@ -124,6 +160,7 @@ export type Database = {
           created_at?: string
           due_day?: number
           id?: string
+          is_synced?: boolean
           last_four_digits?: string | null
           limit_total?: number
           name: string
@@ -131,6 +168,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          bank_id?: string | null
           brand?: string | null
           card_holder_name?: string | null
           closing_day?: number
@@ -138,6 +176,7 @@ export type Database = {
           created_at?: string
           due_day?: number
           id?: string
+          is_synced?: boolean
           last_four_digits?: string | null
           limit_total?: number
           name?: string
@@ -471,6 +510,7 @@ export type Database = {
         Row: {
           account_id: string | null
           amount: number
+          bank_id: string | null
           card_id: string | null
           category_id: string | null
           created_at: string
@@ -482,6 +522,7 @@ export type Database = {
           installment_purchase_id: string | null
           is_installment: boolean
           is_paid: boolean
+          is_synced: boolean
           kind: Database["public"]["Enums"]["tx_kind"]
           paid_amount: number | null
           payment_method: Database["public"]["Enums"]["payment_method"]
@@ -491,6 +532,7 @@ export type Database = {
         Insert: {
           account_id?: string | null
           amount: number
+          bank_id?: string | null
           card_id?: string | null
           category_id?: string | null
           created_at?: string
@@ -502,6 +544,7 @@ export type Database = {
           installment_purchase_id?: string | null
           is_installment?: boolean
           is_paid?: boolean
+          is_synced?: boolean
           kind: Database["public"]["Enums"]["tx_kind"]
           paid_amount?: number | null
           payment_method?: Database["public"]["Enums"]["payment_method"]
@@ -511,6 +554,7 @@ export type Database = {
         Update: {
           account_id?: string | null
           amount?: number
+          bank_id?: string | null
           card_id?: string | null
           category_id?: string | null
           created_at?: string
@@ -522,6 +566,7 @@ export type Database = {
           installment_purchase_id?: string | null
           is_installment?: boolean
           is_paid?: boolean
+          is_synced?: boolean
           kind?: Database["public"]["Enums"]["tx_kind"]
           paid_amount?: number | null
           payment_method?: Database["public"]["Enums"]["payment_method"]
