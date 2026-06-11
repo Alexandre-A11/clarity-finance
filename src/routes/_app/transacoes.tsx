@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Plus, Trash2, ArrowUpDown,
-  Landmark, Smartphone, Banknote, CreditCard as CardLucide, Receipt, FastForward, Link2,
+  Landmark, Smartphone, Banknote, CreditCard as CardLucide, Receipt, FastForward, Link2, Check, Inbox,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
