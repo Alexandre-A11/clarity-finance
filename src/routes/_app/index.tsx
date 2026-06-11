@@ -298,40 +298,11 @@ function Dashboard() {
             </Card>
           </div>
 
-          {/* Próximos vencimentos */}
-          <Card className="p-5 fade-up flex flex-col" style={{ animationDelay: "400ms" } as React.CSSProperties}>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-medium text-white uppercase tracking-widest">Próximos vencimentos</h2>
-              <Link to="/continuas" className="text-xs text-purple-300 hover:text-purple-200 transition-colors">Ver todos →</Link>
-            </div>
-            {upcoming.length === 0 ? (
-              <EmptyState message="Nenhum vencimento próximo. 🎉" />
-            ) : (
-              <ul className="divide-y divide-white/5">
-                {upcoming.slice(0, 4).map((u) => {
-                  const styles = urgencyStyles(u.urgency);
-                  return (
-                    <li key={u.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate text-white">{u.label}</p>
-                        <p className="text-xs text-gray-400 truncate">{u.source} • {fmtDate(u.date)}</p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="tabular font-semibold text-sm text-white">{fmtMoney(u.amount)}</span>
-                        <span className={cn("text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap", styles.badgeBg, styles.badgeFg)}>
-                          {urgencyLabel(u.urgency, u.daysLeft)}
-                        </span>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Card>
         </div>
 
-        {/* Coluna lateral: cartões (estreita) */}
-        <div className="xl:col-span-3 min-w-0">
+        {/* Coluna lateral: cartões + vencimentos */}
+        <div className="xl:col-span-3 min-w-0 flex flex-col gap-4">
+
           <Card className="p-5 fade-up" style={{ animationDelay: "200ms" } as React.CSSProperties}>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-medium text-white uppercase tracking-widest">Meus cartões</h2>
