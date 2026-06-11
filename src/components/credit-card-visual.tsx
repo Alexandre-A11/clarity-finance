@@ -30,15 +30,12 @@ export function CreditCardVisual({
   if (compact) {
     return (
       <div
-        className={`relative overflow-hidden rounded-2xl shadow-lg shadow-black/40 ${className}`}
-        style={{
-          width: 248,
-          aspectRatio: "1.586 / 1",
-          backgroundColor: accent,
-        }}
+        className={`relative overflow-hidden rounded-2xl shadow-lg shadow-black/40 w-full h-auto aspect-[1.58/1] ${className}`}
+        style={{ backgroundColor: accent }}
       >
         {/* Matte: escurece a cor escolhida para combinar com o dark mode */}
         <div className="absolute inset-0 bg-black/45" aria-hidden />
+
         {/* Textura sutil de metal fosco */}
         <div
           className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.06),transparent_70%)]"
