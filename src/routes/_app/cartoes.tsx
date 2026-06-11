@@ -441,11 +441,10 @@ function PurchasesList({ purchases, catById }: { purchases: any[]; catById: Map<
               })}
             </Accordion>
           )}
-        </div>
-      </SheetContent>
-    </Sheet>
+    </div>
   );
 }
+
 
 function NewCardDialog({ userId }: { userId: string }) {
   const [open, setOpen] = useState(false);
