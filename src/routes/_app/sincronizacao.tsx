@@ -254,4 +254,3 @@ function SyncPage() {
   );
 }
 
-export { Link2 as _SyncedIcon };
