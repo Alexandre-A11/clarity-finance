@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppTransacoesRouteImport } from './routes/_app/transacoes'
+import { Route as AppSincronizacaoRouteImport } from './routes/_app/sincronizacao'
 import { Route as AppIrpfRouteImport } from './routes/_app/irpf'
 import { Route as AppInvestimentosRouteImport } from './routes/_app/investimentos'
 import { Route as AppHistoricoRouteImport } from './routes/_app/historico'
@@ -37,6 +38,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppTransacoesRoute = AppTransacoesRouteImport.update({
   id: '/transacoes',
   path: '/transacoes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSincronizacaoRoute = AppSincronizacaoRouteImport.update({
+  id: '/sincronizacao',
+  path: '/sincronizacao',
   getParentRoute: () => AppRoute,
 } as any)
 const AppIrpfRoute = AppIrpfRouteImport.update({
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/historico': typeof AppHistoricoRoute
   '/investimentos': typeof AppInvestimentosRoute
   '/irpf': typeof AppIrpfRoute
+  '/sincronizacao': typeof AppSincronizacaoRoute
   '/transacoes': typeof AppTransacoesRoute
 }
 export interface FileRoutesByTo {
@@ -89,6 +96,7 @@ export interface FileRoutesByTo {
   '/historico': typeof AppHistoricoRoute
   '/investimentos': typeof AppInvestimentosRoute
   '/irpf': typeof AppIrpfRoute
+  '/sincronizacao': typeof AppSincronizacaoRoute
   '/transacoes': typeof AppTransacoesRoute
   '/': typeof AppIndexRoute
 }
@@ -102,6 +110,7 @@ export interface FileRoutesById {
   '/_app/historico': typeof AppHistoricoRoute
   '/_app/investimentos': typeof AppInvestimentosRoute
   '/_app/irpf': typeof AppIrpfRoute
+  '/_app/sincronizacao': typeof AppSincronizacaoRoute
   '/_app/transacoes': typeof AppTransacoesRoute
   '/_app/': typeof AppIndexRoute
 }
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/historico'
     | '/investimentos'
     | '/irpf'
+    | '/sincronizacao'
     | '/transacoes'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -126,6 +136,7 @@ export interface FileRouteTypes {
     | '/historico'
     | '/investimentos'
     | '/irpf'
+    | '/sincronizacao'
     | '/transacoes'
     | '/'
   id:
@@ -138,6 +149,7 @@ export interface FileRouteTypes {
     | '/_app/historico'
     | '/_app/investimentos'
     | '/_app/irpf'
+    | '/_app/sincronizacao'
     | '/_app/transacoes'
     | '/_app/'
   fileRoutesById: FileRoutesById
@@ -175,6 +187,13 @@ declare module '@tanstack/react-router' {
       path: '/transacoes'
       fullPath: '/transacoes'
       preLoaderRoute: typeof AppTransacoesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sincronizacao': {
+      id: '/_app/sincronizacao'
+      path: '/sincronizacao'
+      fullPath: '/sincronizacao'
+      preLoaderRoute: typeof AppSincronizacaoRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/irpf': {
@@ -229,6 +248,7 @@ interface AppRouteChildren {
   AppHistoricoRoute: typeof AppHistoricoRoute
   AppInvestimentosRoute: typeof AppInvestimentosRoute
   AppIrpfRoute: typeof AppIrpfRoute
+  AppSincronizacaoRoute: typeof AppSincronizacaoRoute
   AppTransacoesRoute: typeof AppTransacoesRoute
   AppIndexRoute: typeof AppIndexRoute
 }
@@ -240,6 +260,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppHistoricoRoute: AppHistoricoRoute,
   AppInvestimentosRoute: AppInvestimentosRoute,
   AppIrpfRoute: AppIrpfRoute,
+  AppSincronizacaoRoute: AppSincronizacaoRoute,
   AppTransacoesRoute: AppTransacoesRoute,
   AppIndexRoute: AppIndexRoute,
 }
