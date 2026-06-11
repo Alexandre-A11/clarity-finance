@@ -340,7 +340,7 @@ function Dashboard() {
             {cardsWithUsage.length === 0 ? (
               <EmptyState message="Nenhum cartão cadastrado." />
             ) : (
-              <div className="space-y-2.5">
+              <div className="flex flex-col justify-start gap-4">
                 {cardsWithUsage.map((c: any, idx: number) => {
                   const high = c.pct > 80;
                   return (
