@@ -113,3 +113,33 @@ export const fmtDate = (dateStr: string | null | undefined) => {
   const [y, m, d] = parts;
   return new Date(y, m - 1, d).toLocaleDateString("pt-BR");
 };
+
+// Human-friendly elapsed time since a date (pt-BR).
+// < 1 mês  → "Há X dias"
+// < 1 ano  → "Há X meses"
+// >= 1 ano → "Há X anos" ou "Há X anos e Y meses"
+export const fmtElapsedSince = (dateStr: string | null | undefined): string | null => {
+  if (!dateStr) return null;
+  const parts = String(dateStr).slice(0, 10).split("-").map(Number);
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null;
+  const [y, m, d] = parts;
+  const start = new Date(y, m - 1, d);
+  const now = new Date();
+  if (start > now) return null;
+
+  const msDay = 1000 * 60 * 60 * 24;
+  const days = Math.floor((now.getTime() - start.getTime()) / msDay);
+  if (days < 1) return "Hoje";
+
+  let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+  if (now.getDate() < start.getDate()) months -= 1;
+
+  if (months < 1) return `Há ${days} dia${days === 1 ? "" : "s"}`;
+  if (months < 12) return `Há ${months} ${months === 1 ? "mês" : "meses"}`;
+
+  const years = Math.floor(months / 12);
+  const remMonths = months % 12;
+  if (remMonths === 0) return `Há ${years} ano${years === 1 ? "" : "s"}`;
+  return `Há ${years} ano${years === 1 ? "" : "s"} e ${remMonths} ${remMonths === 1 ? "mês" : "meses"}`;
+};
+
