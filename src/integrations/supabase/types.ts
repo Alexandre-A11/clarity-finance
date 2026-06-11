@@ -48,6 +48,7 @@ export type Database = {
         Row: {
           cnpj: string | null
           created_at: string
+          current_price: number | null
           id: string
           kind: Database["public"]["Enums"]["asset_kind"]
           name: string
@@ -56,6 +57,7 @@ export type Database = {
         Insert: {
           cnpj?: string | null
           created_at?: string
+          current_price?: number | null
           id?: string
           kind: Database["public"]["Enums"]["asset_kind"]
           name: string
@@ -64,6 +66,7 @@ export type Database = {
         Update: {
           cnpj?: string | null
           created_at?: string
+          current_price?: number | null
           id?: string
           kind?: Database["public"]["Enums"]["asset_kind"]
           name?: string
@@ -638,7 +641,7 @@ export type Database = {
     Enums: {
       account_type: "checking" | "savings" | "wallet" | "other"
       app_role: "admin" | "moderator" | "user"
-      asset_kind: "stock" | "fii"
+      asset_kind: "stock" | "fii" | "rendafixa" | "cripto"
       dividend_type: "dividend" | "jcp" | "rendimento"
       ongoing_kind: "subscription" | "installment"
       ongoing_payment_method: "debito_automatico" | "boleto" | "credito" | "pix"
@@ -774,7 +777,7 @@ export const Constants = {
     Enums: {
       account_type: ["checking", "savings", "wallet", "other"],
       app_role: ["admin", "moderator", "user"],
-      asset_kind: ["stock", "fii"],
+      asset_kind: ["stock", "fii", "rendafixa", "cripto"],
       dividend_type: ["dividend", "jcp", "rendimento"],
       ongoing_kind: ["subscription", "installment"],
       ongoing_payment_method: ["debito_automatico", "boleto", "credito", "pix"],
