@@ -311,43 +311,32 @@ function Dashboard() {
             {cardsWithUsage.length === 0 ? (
               <EmptyState message="Nenhum cartão cadastrado." />
             ) : (
-              <div className="flex flex-col gap-2">
+              <div>
                 {cardsWithUsage.map((c: any, idx: number) => {
                   const high = c.pct > 80;
-                  const initials = (c.name ?? "?")
-                    .split(/\s+/)
-                    .map((w: string) => w[0])
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .join("")
-                    .toUpperCase();
                   const last4 = c.last_four_digits && /^\d{4}$/.test(c.last_four_digits)
                     ? c.last_four_digits
                     : "0000";
                   return (
                     <div
                       key={c.id}
-                      className="fade-up rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 px-3 py-2.5 transition-colors"
+                      className="flex flex-col p-3 mb-2 bg-zinc-900/50 rounded-xl border border-white/5 fade-up"
                       style={{ animationDelay: `${260 + idx * 70}ms` } as React.CSSProperties}
                     >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="h-8 w-8 rounded-lg flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-inner"
-                          style={{ backgroundColor: c.color || "#a855f7" }}
-                          aria-hidden
-                        >
-                          {initials}
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="w-1 h-4 rounded-full shrink-0"
+                            style={{ backgroundColor: c.color || "#a855f7" }}
+                            aria-hidden
+                          />
+                          <span className="text-sm font-medium text-white truncate">
+                            {c.name} <span className="text-gray-400 font-normal">•••• {hidden ? "••••" : last4}</span>
+                          </span>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-white truncate leading-tight">{c.name}</p>
-                          <p className="text-[11px] text-gray-400 font-mono tracking-wider tabular">
-                            •••• {hidden ? "••••" : last4}
-                          </p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-semibold text-white tabular leading-tight">{fmtMoney(c.used)}</p>
-                          <p className="text-[10px] text-gray-500 tabular">{c.pct.toFixed(0)}%</p>
-                        </div>
+                        <span className="text-sm font-semibold text-white tabular shrink-0">
+                          {fmtMoney(c.used)}
+                        </span>
                       </div>
                       <div className="mt-2 flex items-center gap-2">
                         <div className="h-0.5 flex-1 bg-white/5 rounded-full overflow-hidden">
@@ -361,7 +350,7 @@ function Dashboard() {
                             }}
                           />
                         </div>
-                        <span className="text-[10px] text-gray-500 tabular shrink-0">
+                        <span className="text-xs text-gray-500 tabular shrink-0">
                           {fmtMoney(c.limit_total)}
                         </span>
                       </div>
@@ -369,6 +358,7 @@ function Dashboard() {
                   );
                 })}
               </div>
+
 
             )}
           </Card>
