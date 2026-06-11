@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { ArrowDownRight, ArrowUpRight, TrendingUp, Wallet, CreditCard as CreditCardIcon, AlertCircle, Clock, Link2 } from "lucide-react";
 import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
-import { CreditCardVisual } from "@/components/credit-card-visual";
+
 import { cn } from "@/lib/utils";
 import { usePrivacy } from "@/lib/privacy-context";
 
