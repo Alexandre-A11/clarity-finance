@@ -298,32 +298,61 @@ function CardDetailSheet({
           Toda saída de dinheiro acontece em <b>Transações → Nova</b>. Antecipações de parcelas também ficam por lá.
         </p>
 
-        <div className="mt-6 space-y-3">
-          <div className="flex items-baseline justify-between">
-            <h3 className="text-sm font-medium">Compras</h3>
-            <p className="text-[11px] text-muted-foreground">
-              {purchases.filter((p) => !p.fullyPaid).length} ativa{purchases.filter((p) => !p.fullyPaid).length === 1 ? "" : "s"} · {purchases.length} no total
-            </p>
-          </div>
+        <PurchasesList purchases={purchases} catById={catById} />
+      </SheetContent>
+    </Sheet>
+  );
+}
 
-          {purchases.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">
-              Nenhuma compra neste cartão.
-            </p>
-          ) : (
-            <Accordion type="multiple" className="space-y-2">
-              {purchases.map((p) => {
-                const cat = p.categoryId ? catById.get(p.categoryId) : null;
-                const pct = p.totalCount > 0 ? (p.paidCount / p.totalCount) * 100 : 0;
-                const pending = p.totalCount - p.paidCount;
-                const isMulti = p.totalCount > 1;
+function PurchasesList({ purchases, catById }: { purchases: any[]; catById: Map<string, any> }) {
+  const [filter, setFilter] = useState<"active" | "done" | "canceled">("active");
 
-                return (
-                  <AccordionItem
-                    key={p.key}
-                    value={p.key}
-                    className={`rounded-lg border ${p.fullyPaid ? "border-emerald-200 bg-emerald-50/40" : "border-border bg-card"} overflow-hidden`}
-                  >
+  const active = purchases.filter((p) => !p.fullyPaid && !p.canceled);
+  const done = purchases.filter((p) => p.fullyPaid && !p.canceled);
+  const canceled = purchases.filter((p) => p.canceled);
+  const visible = filter === "active" ? active : filter === "done" ? done : canceled;
+
+  return (
+    <div className="mt-6 space-y-3">
+      <div className="flex items-baseline justify-between gap-3 flex-wrap">
+        <h3 className="text-sm font-medium">Compras</h3>
+        <p className="text-[11px] text-muted-foreground">
+          {active.length} ativa{active.length === 1 ? "" : "s"} · {purchases.length} no total
+        </p>
+      </div>
+
+      <Tabs value={filter} onValueChange={(v) => setFilter(v as any)}>
+        <TabsList className="grid grid-cols-3 w-full">
+          <TabsTrigger value="active">Em andamento ({active.length})</TabsTrigger>
+          <TabsTrigger value="done">Concluídas ({done.length})</TabsTrigger>
+          <TabsTrigger value="canceled">Canceladas ({canceled.length})</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {visible.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-6 text-center">
+          {filter === "active"
+            ? "Nenhuma compra em andamento."
+            : filter === "done"
+              ? "Nenhuma compra concluída."
+              : "Nenhuma compra cancelada."}
+        </p>
+      ) : (
+        <Accordion type="multiple" className="space-y-2">
+          {visible.map((p) => {
+            const cat = p.categoryId ? catById.get(p.categoryId) : null;
+            const pct = p.totalCount > 0 ? (p.paidCount / p.totalCount) * 100 : 0;
+            const pending = p.totalCount - p.paidCount;
+            const isMulti = p.totalCount > 1;
+            const dimmed = p.fullyPaid || p.canceled;
+
+            return (
+              <AccordionItem
+                key={p.key}
+                value={p.key}
+                className={`rounded-lg border border-border bg-card overflow-hidden ${dimmed ? "opacity-60" : ""}`}
+              >
+
                     <AccordionTrigger className="px-4 py-3 hover:no-underline [&>svg]:hidden group">
                       <div className="flex items-start gap-3 w-full">
                         <ChevronDown className="h-4 w-4 mt-0.5 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 shrink-0" />
