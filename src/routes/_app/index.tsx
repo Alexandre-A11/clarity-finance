@@ -3,7 +3,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useRealtimeQuery } from "@/lib/data-hooks";
 import { fmtMoney, monthRange, monthLabel, daysUntil, dueUrgency, fmtDate, type DueUrgency } from "@/lib/finance";
 import { Card } from "@/components/ui/card";
-import { ArrowDownRight, ArrowUpRight, TrendingUp, Wallet, CreditCard as CreditCardIcon, AlertCircle, Clock } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, TrendingUp, Wallet, CreditCard as CreditCardIcon, AlertCircle, Clock, Link2 } from "lucide-react";
 import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { CreditCardVisual } from "@/components/credit-card-visual";
@@ -279,7 +279,12 @@ function Dashboard() {
                           {isIncome ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate text-white">{t.description ?? cat?.name ?? "Lançamento"}</p>
+                          <p className="text-sm font-medium truncate text-white flex items-center gap-1.5">
+                            <span className="truncate">{t.description ?? cat?.name ?? "Lançamento"}</span>
+                            {t.is_synced && (
+                              <Link2 className="h-3 w-3 text-emerald-400 shrink-0" aria-label="Importado do banco" />
+                            )}
+                          </p>
                           <p className="text-xs text-gray-400 truncate">{cat?.name ?? "Sem categoria"} • {fmtDate(t.date)}</p>
                         </div>
                         <span className={cn("tabular font-semibold text-sm shrink-0", isIncome ? "text-emerald-400" : "text-white")}>
