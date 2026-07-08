@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ShieldCheck, Lock, Sparkles, CheckCircle2, Loader2, Link2, Building2 } from "lucide-react";
+import { ShieldCheck, Lock, Sparkles, CheckCircle2, Loader2, Link2, Building2, RefreshCw } from "lucide-react";
 import { BANKS, type Bank } from "@/lib/banks";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -56,6 +56,77 @@ function SyncPage() {
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<Bank | null>(null);
   const [step, setStep] = useState<Step>("intro");
+  const [syncing, setSyncing] = useState(false);
+
+  const syncNow = async () => {
+    if (!user || syncing) return;
+    const connected = conns.filter((c) => c.status === "connected");
+    if (connected.length === 0) {
+      toast.error("Conecte pelo menos um banco antes de sincronizar.");
+      return;
+    }
+    setSyncing(true);
+    await new Promise((r) => setTimeout(r, 2400));
+
+    const pool = [
+      { description: "Uber",           amount: 25.9,  kind: "expense" as const },
+      { description: "iFood",          amount: 45.0,  kind: "expense" as const },
+      { description: "Mercado Livre",  amount: 120.0, kind: "expense" as const },
+      { description: "Netflix",        amount: 39.9,  kind: "expense" as const },
+      { description: "Spotify Premium",amount: 21.9,  kind: "expense" as const },
+      { description: "Amazon.com.br",  amount: 89.9,  kind: "expense" as const },
+      { description: "99 Pop",         amount: 18.5,  kind: "expense" as const },
+      { description: "PIX Recebido",   amount: 250,   kind: "income"  as const },
+    ];
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    const count = 2 + Math.floor(Math.random() * 2); // 2 ou 3
+    const picks = shuffled.slice(0, count);
+    const today = new Date().toISOString().slice(0, 10);
+
+    const rows = picks.map((p, i) => {
+      const bank = connected[i % connected.length];
+      return {
+        user_id: user.id,
+        date: today,
+        amount: p.amount,
+        kind: p.kind,
+        description: `${bank.bank_name} • ${p.description}`,
+        payment_method: "checking" as const,
+        is_paid: true,
+        is_synced: true,
+        needs_review: true,
+        bank_id: bank.bank_id,
+      };
+    });
+
+    const { error: insErr } = await supabase.from("transactions").insert(rows);
+    if (insErr) {
+      toast.error("Falha ao sincronizar transações");
+      setSyncing(false);
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+    await supabase
+      .from("bank_connections")
+      .update({ last_sync_at: nowIso })
+      .eq("user_id", user.id)
+      .eq("status", "connected");
+
+    await refresh();
+    setSyncing(false);
+    toast.success(`Sincronização concluída. ${count} novas transações aguardam sua revisão.`);
+  };
+
+  const formatLastSync = (iso: string | null) => {
+    if (!iso) return "Nunca sincronizado";
+    const d = new Date(iso);
+    const today = new Date();
+    const sameDay = d.toDateString() === today.toDateString();
+    const hh = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    if (sameDay) return `Hoje às ${hh}`;
+    return `${d.toLocaleDateString("pt-BR")} às ${hh}`;
+  };
 
   const refresh = async () => {
     if (!user) return;
@@ -155,9 +226,15 @@ function SyncPage() {
             Conecte seus bancos para importar lançamentos automaticamente, de forma segura e auditada pelo Banco Central.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-emerald-300/90">
-          <ShieldCheck className="h-4 w-4" />
-          Padrão Open Finance
+        <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-2 text-xs text-emerald-300/90">
+            <ShieldCheck className="h-4 w-4" />
+            Padrão Open Finance
+          </div>
+          <Button size="sm" variant="outline" onClick={syncNow} disabled={syncing} className="gap-2">
+            <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} />
+            {syncing ? "Sincronizando…" : "Sincronizar Dados"}
+          </Button>
         </div>
       </div>
 
@@ -188,6 +265,7 @@ function SyncPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {BANKS.map((bank) => {
             const connected = isConnected(bank.id);
+            const conn = conns.find((c) => c.bank_id === bank.id && c.status === "connected");
             return (
               <Card key={bank.id} className="p-4 flex items-center gap-4 hover:border-white/15 transition-colors">
                 <BankLogo bank={bank} />
@@ -196,6 +274,11 @@ function SyncPage() {
                   <p className={cn("text-xs mt-0.5", connected ? "text-emerald-400" : "text-gray-400")}>
                     {connected ? "● Conectado" : "Não conectado"}
                   </p>
+                  {connected && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      Última sincronização: {formatLastSync(conn?.last_sync_at ?? null)}
+                    </p>
+                  )}
                 </div>
                 {connected ? (
                   <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white" onClick={() => disconnect(bank.id)}>
