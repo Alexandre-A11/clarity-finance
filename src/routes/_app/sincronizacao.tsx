@@ -226,9 +226,15 @@ function SyncPage() {
             Conecte seus bancos para importar lançamentos automaticamente, de forma segura e auditada pelo Banco Central.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-emerald-300/90">
-          <ShieldCheck className="h-4 w-4" />
-          Padrão Open Finance
+        <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-2 text-xs text-emerald-300/90">
+            <ShieldCheck className="h-4 w-4" />
+            Padrão Open Finance
+          </div>
+          <Button size="sm" variant="outline" onClick={syncNow} disabled={syncing} className="gap-2">
+            <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} />
+            {syncing ? "Sincronizando…" : "Sincronizar Dados"}
+          </Button>
         </div>
       </div>
 
