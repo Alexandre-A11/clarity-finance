@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ShieldCheck, Lock, Sparkles, CheckCircle2, Loader2, Link2, Building2 } from "lucide-react";
+import { ShieldCheck, Lock, Sparkles, CheckCircle2, Loader2, Link2, Building2, RefreshCw } from "lucide-react";
 import { BANKS, type Bank } from "@/lib/banks";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
