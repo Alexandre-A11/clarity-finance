@@ -56,6 +56,77 @@ function SyncPage() {
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<Bank | null>(null);
   const [step, setStep] = useState<Step>("intro");
+  const [syncing, setSyncing] = useState(false);
+
+  const syncNow = async () => {
+    if (!user || syncing) return;
+    const connected = conns.filter((c) => c.status === "connected");
+    if (connected.length === 0) {
+      toast.error("Conecte pelo menos um banco antes de sincronizar.");
+      return;
+    }
+    setSyncing(true);
+    await new Promise((r) => setTimeout(r, 2400));
+
+    const pool = [
+      { description: "Uber",           amount: 25.9,  kind: "expense" as const },
+      { description: "iFood",          amount: 45.0,  kind: "expense" as const },
+      { description: "Mercado Livre",  amount: 120.0, kind: "expense" as const },
+      { description: "Netflix",        amount: 39.9,  kind: "expense" as const },
+      { description: "Spotify Premium",amount: 21.9,  kind: "expense" as const },
+      { description: "Amazon.com.br",  amount: 89.9,  kind: "expense" as const },
+      { description: "99 Pop",         amount: 18.5,  kind: "expense" as const },
+      { description: "PIX Recebido",   amount: 250,   kind: "income"  as const },
+    ];
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    const count = 2 + Math.floor(Math.random() * 2); // 2 ou 3
+    const picks = shuffled.slice(0, count);
+    const today = new Date().toISOString().slice(0, 10);
+
+    const rows = picks.map((p, i) => {
+      const bank = connected[i % connected.length];
+      return {
+        user_id: user.id,
+        date: today,
+        amount: p.amount,
+        kind: p.kind,
+        description: `${bank.bank_name} • ${p.description}`,
+        payment_method: "checking" as const,
+        is_paid: true,
+        is_synced: true,
+        needs_review: true,
+        bank_id: bank.bank_id,
+      };
+    });
+
+    const { error: insErr } = await supabase.from("transactions").insert(rows);
+    if (insErr) {
+      toast.error("Falha ao sincronizar transações");
+      setSyncing(false);
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+    await supabase
+      .from("bank_connections")
+      .update({ last_sync_at: nowIso })
+      .eq("user_id", user.id)
+      .eq("status", "connected");
+
+    await refresh();
+    setSyncing(false);
+    toast.success(`Sincronização concluída. ${count} novas transações aguardam sua revisão.`);
+  };
+
+  const formatLastSync = (iso: string | null) => {
+    if (!iso) return "Nunca sincronizado";
+    const d = new Date(iso);
+    const today = new Date();
+    const sameDay = d.toDateString() === today.toDateString();
+    const hh = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    if (sameDay) return `Hoje às ${hh}`;
+    return `${d.toLocaleDateString("pt-BR")} às ${hh}`;
+  };
 
   const refresh = async () => {
     if (!user) return;
