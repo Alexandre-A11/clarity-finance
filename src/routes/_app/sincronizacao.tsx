@@ -265,6 +265,7 @@ function SyncPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {BANKS.map((bank) => {
             const connected = isConnected(bank.id);
+            const conn = conns.find((c) => c.bank_id === bank.id && c.status === "connected");
             return (
               <Card key={bank.id} className="p-4 flex items-center gap-4 hover:border-white/15 transition-colors">
                 <BankLogo bank={bank} />
@@ -273,6 +274,11 @@ function SyncPage() {
                   <p className={cn("text-xs mt-0.5", connected ? "text-emerald-400" : "text-gray-400")}>
                     {connected ? "● Conectado" : "Não conectado"}
                   </p>
+                  {connected && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      Última sincronização: {formatLastSync(conn?.last_sync_at ?? null)}
+                    </p>
+                  )}
                 </div>
                 {connected ? (
                   <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white" onClick={() => disconnect(bank.id)}>
